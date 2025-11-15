@@ -20,6 +20,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5   # ou 1.8.x, comme tu veux  
+
       # 2) Login à Azure avec OIDC (ce que tu as déjà configuré)
       - name: Azure Login (OIDC)
         uses: azure/login@v2
