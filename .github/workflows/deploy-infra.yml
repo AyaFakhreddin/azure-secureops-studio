@@ -1,0 +1,48 @@
+name: Deploy Infra
+
+on:
+  workflow_dispatch:      # tu peux lancer à la main depuis l'onglet Actions
+  push:
+    branches: [ main ]    # se lance aussi quand tu push sur main
+    paths:
+      - "infra/**"        # seulement si des fichiers dans infra/ changent
+
+permissions:
+  id-token: write         # nécessaire pour OIDC
+  contents: read          # pour lire le repo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Récupérer ton code (Terraform, etc.)
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 2) Login à Azure avec OIDC (ce que tu as déjà configuré)
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # 3) Aller dans le dossier Terraform
+      - name: Change to infra directory
+        run: cd infra && pwd
+
+      # 4) Init Terraform (backend, providers…)
+      - name: Terraform Init
+        working-directory: ./infra
+        run: terraform init -input=false
+
+      # 5) Terraform Plan (voir ce qui va être créé/modifié)
+      - name: Terraform Plan
+        working-directory: ./infra
+        run: terraform plan -input=false
+
+      # 6) Terraform Apply (appliquer les changements)
+      - name: Terraform Apply
+        working-directory: ./infra
+        run: terraform apply -input=false -auto-approve
