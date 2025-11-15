@@ -26,11 +26,11 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # ⚠️ ÉTAPE TRÈS IMPORTANTE : installer Terraform
+      
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.6.0
+          terraform_version: 1.8.0
 
       - name: Terraform Init
         working-directory: ./infra
