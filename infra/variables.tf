@@ -7,8 +7,3 @@ variable "project_name" {
   type    = string
   default = "azure-secureops-studio"
 }
-
-variable "environment" {
-  type    = string
-  default = "dev"
-}
