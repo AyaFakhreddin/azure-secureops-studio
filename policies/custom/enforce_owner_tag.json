@@ -1,0 +1,21 @@
+{
+  "properties": {
+    "displayName": "Enforce Owner Tag",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "Deny creation or update of resources without the 'Owner' tag.",
+    "metadata": {
+      "category": "Tags",
+      "version": "1.0.0"
+    },
+    "policyRule": {
+      "if": {
+        "field": "tags['Owner']",
+        "exists": "false"
+      },
+      "then": {
+        "effect": "deny"
+      }
+    }
+  }
+}

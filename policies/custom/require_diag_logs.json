@@ -1,0 +1,28 @@
+{
+  "properties": {
+    "displayName": "Audit missing diagnostic settings on Storage Accounts",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "Audit Storage Accounts that do not have diagnostic logs enabled.",
+    "metadata": {
+      "category": "Monitoring",
+      "version": "1.0.0"
+    },
+    "policyRule": {
+      "if": {
+        "field": "type",
+        "equals": "Microsoft.Storage/storageAccounts"
+      },
+      "then": {
+        "effect": "auditIfNotExists",
+        "details": {
+          "type": "Microsoft.Insights/diagnosticSettings",
+          "existenceCondition": {
+            "field": "Microsoft.Insights/diagnosticSettings/logs.enabled",
+            "equals": "true"
+          }
+        }
+      }
+    }
+  }
+}

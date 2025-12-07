@@ -1,0 +1,66 @@
+resource "azurerm_policy_definition" "deny_public_ip" {
+  name         = "deny-public-ip"
+  display_name = "Deny Public IP addresses"
+  policy_type  = "Custom"
+  mode         = "Indexed"
+  description  = "Deny creation of Public IP resources."
+
+  policy_rule = jsonencode({
+    if = {
+      field  = "type"
+      equals = "Microsoft.Network/publicIPAddresses"
+    }
+    then = {
+      effect = "deny"
+    }
+  })
+
+  metadata = jsonencode({
+    category = "Network"
+    version  = "1.0.0"
+  })
+}
+
+resource "azurerm_subscription_policy_assignment" "deny_public_ip_assignment" {
+  name                 = "deny-public-ip-assignment"
+  display_name         = "Deny Public IP Assignment"
+  subscription_id      = data.azurerm_subscription.current.id
+  policy_definition_id = azurerm_policy_definition.deny_public_ip.id
+}
+
+resource "azurerm_policy_definition" "require_diag_logs" {
+  name         = "audit-storage-diag-logs"
+  display_name = "Audit missing diagnostic settings on Storage Accounts"
+  policy_type  = "Custom"
+  mode         = "Indexed"
+  description  = "Audit Storage Accounts that do not have diagnostic logs enabled."
+
+  policy_rule = jsonencode({
+    if = {
+      field  = "type"
+      equals = "Microsoft.Storage/storageAccounts"
+    }
+    then = {
+      effect = "auditIfNotExists"
+      details = {
+        type = "Microsoft.Insights/diagnosticSettings"
+        existenceCondition = {
+          field  = "Microsoft.Insights/diagnosticSettings/logs.enabled"
+          equals = "true"
+        }
+      }
+    }
+  })
+
+  metadata = jsonencode({
+    category = "Monitoring"
+    version  = "1.0.0"
+  })
+}
+
+resource "azurerm_subscription_policy_assignment" "require_diag_logs_assignment" {
+  name                 = "require-diag-logs-assignment"
+  display_name         = "Audit Storage Accounts Diagnostic Settings Assignment"
+  subscription_id      = data.azurerm_subscription.current.id
+  policy_definition_id = azurerm_policy_definition.require_diag_logs.id
+}
