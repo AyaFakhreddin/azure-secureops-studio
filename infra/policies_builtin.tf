@@ -77,19 +77,19 @@ resource "azurerm_subscription_policy_assignment" "assign_deploy_diag_stream" {
 
   parameters = jsonencode({
     effect = {
-      value = "DeployIfNotExists"        # comme defaultValue dans ton JSON
+      value = "DeployIfNotExists" # comme defaultValue dans ton JSON
     }
     profileName = {
       value = "setbypolicy_logAnalytics" # comme defaultValue dans ton JSON
     }
     logAnalytics = {
-      value = var.log_analytics_workspace_id  # notre workspace
+      value = var.log_analytics_workspace_id # notre workspace
     }
     metricsEnabled = {
-      value = "False"                    # defaultValue dans ton JSON
+      value = "False" # defaultValue dans ton JSON
     }
     logsEnabled = {
-      value = "True"                     # defaultValue dans ton JSON
+      value = "True" # defaultValue dans ton JSON
     }
   })
 }
