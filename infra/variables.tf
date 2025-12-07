@@ -12,3 +12,7 @@ variable "subscription_id" {
   type        = string
   description = "the subscription id for the compte"
 }
+variable "log_analytics_workspace_id" {
+  type        = string
+  description = "Resource ID of the Log Analytics workspace used for diagnostics"
+}
