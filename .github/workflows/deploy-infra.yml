@@ -50,7 +50,9 @@ jobs:
           ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_USE_OIDC:        "true"
-        run: terraform plan -input=false
+        run: terraform plan -input=false \
+          -var "subscription_id=${{ vars.TF_SUBSCRIPTION_RESOURCE_ID }}" \
+          -var "log_analytics_workspace_id=${{ vars.TF_LOG_ANALYTICS_WORKSPACE_ID }}"
 
       - name: Terraform Apply
         working-directory: ./infra
@@ -59,4 +61,7 @@ jobs:
           ARM_TENANT_ID:       ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_USE_OIDC:        "true"
-        run: terraform apply -input=false -auto-approve
+        run: |
+          terraform apply -input=false -auto-approve \
+          -var "subscription_id=${{ vars.TF_SUBSCRIPTION_RESOURCE_ID }}" \
+          -var "log_analytics_workspace_id=${{ vars.TF_LOG_ANALYTICS_WORKSPACE_ID }}"
