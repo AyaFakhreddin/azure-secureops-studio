@@ -9,15 +9,14 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   "contentVersion": "1.0.0.0",
   "parameters": {},
   "variables": {
-    "logicAppName": "la-owner-tag-remediation",
-    "logicAppLocation": "westeurope"
+    "logicAppName": "la-owner-tag-remediation"
   },
   "resources": [
     {
       "type": "Microsoft.Logic/workflows",
       "apiVersion": "2019-05-01",
       "name": "[variables('logicAppName')]",
-      "location": "[variables('logicAppLocation')]",
+      "location": "[resourceGroup().location]",
       "tags": {
         "Owner": "NotSet"
       },
@@ -84,6 +83,7 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   }
 }
 TEMPLATE
+
 
 }
 

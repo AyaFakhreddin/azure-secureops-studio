@@ -35,7 +35,7 @@ resource "azurerm_subscription_policy_assignment" "assign_allowed_locations" {
 
   parameters = jsonencode({
     listOfAllowedLocations = {
-      value = ["westeurope"]
+      value = ["francecentral", "westeurope"]
     }
   })
 }
@@ -73,7 +73,7 @@ resource "azurerm_subscription_policy_assignment" "assign_deploy_diag_stream" {
   policy_definition_id = data.azurerm_policy_definition.deploy_diag_stream.id
 
   # obligatoire pour DeployIfNotExists
-  location = "francecentral"  # ou la même région que ton LAW (France Central)
+  location = "francecentral" # ou la même région que ton LAW (France Central)
 
   identity {
     type = "SystemAssigned"
