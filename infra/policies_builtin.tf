@@ -72,25 +72,28 @@ resource "azurerm_subscription_policy_assignment" "assign_deploy_diag_stream" {
   subscription_id      = var.subscription_id
   policy_definition_id = data.azurerm_policy_definition.deploy_diag_stream.id
 
-  # Les paramètres viennent DIRECTEMENT de ton JSON :
-  # parameters: effect, profileName, logAnalytics, metricsEnabled, logsEnabled
+  # obligatoire pour DeployIfNotExists
+  location = "francecentral"  # ou la même région que ton LAW (France Central)
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   parameters = jsonencode({
     effect = {
-      value = "DeployIfNotExists"        # comme defaultValue dans ton JSON
+      value = "DeployIfNotExists"
     }
     profileName = {
-      value = "setbypolicy_logAnalytics" # comme defaultValue dans ton JSON
+      value = "setbypolicy_logAnalytics"
     }
     logAnalytics = {
-      value = var.log_analytics_workspace_id  # notre workspace
+      value = var.log_analytics_workspace_id
     }
     metricsEnabled = {
-      value = "False"                    # defaultValue dans ton JSON
+      value = "False"
     }
     logsEnabled = {
-      value = "True"                     # defaultValue dans ton JSON
+      value = "True"
     }
   })
 }
-
