@@ -64,3 +64,36 @@ resource "azurerm_subscription_policy_assignment" "require_diag_logs_assignment"
   subscription_id      = data.azurerm_subscription.current.id
   policy_definition_id = azurerm_policy_definition.require_diag_logs.id
 }
+
+# ====================================
+# NEW: Audit Missing Owner Tag (for remediation)
+# ====================================
+resource "azurerm_policy_definition" "audit_owner_tag" {
+  name         = "audit-owner-tag"
+  display_name = "Audit Missing Owner Tag"
+  policy_type  = "Custom"
+  mode         = "Indexed"
+  description  = "Audit resources that do not have the 'Owner' tag."
+
+  policy_rule = jsonencode({
+    if = {
+      field  = "tags['Owner']"
+      exists = "false"
+    }
+    then = {
+      effect = "audit"
+    }
+  })
+
+  metadata = jsonencode({
+    category = "Tags"
+    version  = "1.0.0"
+  })
+}
+
+resource "azurerm_subscription_policy_assignment" "audit_owner_tag_assignment" {
+  name                 = "audit-owner-tag-assignment"
+  display_name         = "Audit Owner Tag Assignment"
+  subscription_id      = data.azurerm_subscription.current.id
+  policy_definition_id = azurerm_policy_definition.audit_owner_tag.id
+}
