@@ -9,14 +9,18 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   "contentVersion": "1.0.0.0",
   "parameters": {},
   "variables": {
-    "logicAppName": "la-owner-tag-remediation"
+    "logicAppName": "la-owner-tag-remediation",
+    "logicAppLocation": "westeurope"
   },
   "resources": [
     {
       "type": "Microsoft.Logic/workflows",
       "apiVersion": "2019-05-01",
       "name": "[variables('logicAppName')]",
-      "location": "[resourceGroup().location]",
+      "location": "[variables('logicAppLocation')]",
+      "tags": {
+        "Owner": "NotSet"
+      },
       "identity": {
         "type": "SystemAssigned"
       },
@@ -80,6 +84,7 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   }
 }
 TEMPLATE
+
 }
 
 # Donner le rôle Contributor à l'identité managée de la Logic App
