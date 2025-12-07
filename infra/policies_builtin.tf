@@ -7,10 +7,6 @@ data "azurerm_policy_definition" "allowed_locations" {
   name = "e56962a6-4747-49cd-b67b-bf8b01975c4c"
 }
 
-# Require a tag and its value on resources
-data "azurerm_policy_definition" "require_tag" {
-  name = "1e30110a-5ceb-460c-a204-c1c3969c6d62"
-}
 
 # Secure transfer for storage accounts
 data "azurerm_policy_definition" "secure_transfer" {
@@ -40,22 +36,6 @@ resource "azurerm_subscription_policy_assignment" "assign_allowed_locations" {
   })
 }
 
-# 2.2 Require tag Owner
-resource "azurerm_subscription_policy_assignment" "assign_require_tag_owner" {
-  name                 = "aoss-assign-require-tag-owner"
-  display_name         = "AOSS - Require tag Owner on resources"
-  subscription_id      = var.subscription_id
-  policy_definition_id = data.azurerm_policy_definition.require_tag.id
-
-  parameters = jsonencode({
-    tagName = {
-      value = "Owner"
-    }
-    tagValue = {
-      value = "NotSet"
-    }
-  })
-}
 
 # 2.3 Secure transfer for Storage Accounts
 resource "azurerm_subscription_policy_assignment" "assign_secure_transfer_storage" {
