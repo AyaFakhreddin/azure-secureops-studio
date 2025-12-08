@@ -17,6 +17,9 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
       "apiVersion": "2019-05-01",
       "name": "[variables('logicAppName')]",
       "location": "[resourceGroup().location]",
+      "tags": {
+        "Owner": "NotSet"
+      },
       "identity": {
         "type": "SystemAssigned"
       },
@@ -80,6 +83,8 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   }
 }
 TEMPLATE
+
+
 }
 
 # Donner le rôle Contributor à l'identité managée de la Logic App
