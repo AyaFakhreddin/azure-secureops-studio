@@ -35,27 +35,27 @@ resource "azurerm_subscription_policy_assignment" "assign_allowed_locations" {
 
   parameters = jsonencode({
     listOfAllowedLocations = {
-      value = ["francecentral", "westeurope"]
+      value = ["westeurope"]
     }
   })
 }
 
 # 2.2 Require tag Owner
-resource "azurerm_subscription_policy_assignment" "assign_require_tag_owner" {
-  name                 = "aoss-assign-require-tag-owner"
-  display_name         = "AOSS - Require tag Owner on resources"
-  subscription_id      = var.subscription_id
-  policy_definition_id = data.azurerm_policy_definition.require_tag.id
-
-  parameters = jsonencode({
-    tagName = {
-      value = "Owner"
-    }
-    tagValue = {
-      value = "NotSet"
-    }
-  })
-}
+#resource "azurerm_subscription_policy_assignment" "assign_require_tag_owner" {
+#  name                 = "aoss-assign-require-tag-owner"
+#  display_name         = "AOSS - Require tag Owner on resources"
+#  subscription_id      = var.subscription_id
+#  policy_definition_id = data.azurerm_policy_definition.require_tag.id#
+#
+#  parameters = jsonencode({
+#    tagName = {
+#      value = "Owner"
+#    }
+#    tagValue = {
+#      value = "NotSet"
+#    }
+#  })
+#}
 
 # 2.3 Secure transfer for Storage Accounts
 resource "azurerm_subscription_policy_assignment" "assign_secure_transfer_storage" {

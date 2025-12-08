@@ -87,12 +87,4 @@ TEMPLATE
 
 }
 
-# Donner le rôle Contributor à l'identité managée de la Logic App
-resource "azurerm_role_assignment" "la_owner_tag_contributor" {
-  scope                = data.azurerm_subscription.current.id
-  role_definition_name = "Contributor"
-  principal_id = jsondecode(
-    azurerm_resource_group_template_deployment.la_owner_tag.output_content
-  ).logicAppPrincipalId.value
 
-}
