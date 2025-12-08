@@ -35,7 +35,7 @@ resource "azurerm_subscription_policy_assignment" "assign_allowed_locations" {
 
   parameters = jsonencode({
     listOfAllowedLocations = {
-      value = ["westeurope"]
+      value = ["francecentral", "westeurope"]
     }
   })
 }

@@ -1,6 +1,5 @@
 #############################################
 # Remédiation des POLICIES BUILT-IN via Logic App
-# - Require tag Owner
 # - Secure transfer for Storage Accounts
 # - Allowed locations
 #############################################
@@ -20,9 +19,7 @@ resource "azurerm_resource_group_template_deployment" "builtin_policy_remediator
     logicAppName = {
       value = "aoss-builtin-policy-remediator"
     }
-    requireTagOwnerAssignmentId = {
-      value = azurerm_subscription_policy_assignment.assign_require_tag_owner.id
-    }
+
     secureTransferAssignmentId = {
       value = azurerm_subscription_policy_assignment.assign_secure_transfer_storage.id
     }
@@ -41,9 +38,7 @@ resource "azurerm_resource_group_template_deployment" "builtin_policy_remediator
         type         = "string"
         defaultValue = "aoss-builtin-policy-remediator"
       }
-      requireTagOwnerAssignmentId = {
-        type = "string"
-      }
+
       secureTransferAssignmentId = {
         type = "string"
       }
@@ -61,7 +56,7 @@ resource "azurerm_resource_group_template_deployment" "builtin_policy_remediator
         name       = "[parameters('logicAppName')]"
         location   = "[resourceGroup().location]"
 
-        # 🔹 IMPORTANT : tag pour satisfaire tes policies Owner
+        # Tag Owner pour satisfaire la custom policy Enforce Owner Tag
         tags = {
           Owner = "NotSet"
         }
@@ -75,10 +70,10 @@ resource "azurerm_resource_group_template_deployment" "builtin_policy_remediator
           parameters = {}
 
           definition = {
-            "$schema"        = "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#"
-            contentVersion   = "1.0.0.0"
-            parameters       = {}
-            outputs          = {}
+            "$schema"      = "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#"
+            contentVersion = "1.0.0.0"
+            parameters     = {}
+            outputs        = {}
 
             # Trigger HTTP (appelé par les tâches de remédiation Azure Policy)
             triggers = {
@@ -113,33 +108,7 @@ resource "azurerm_resource_group_template_deployment" "builtin_policy_remediator
 
                 cases = {
 
-                  # 1️⃣ Require tag Owner (built-in)
-                  Require_Tag_Owner = {
-                    case = "[parameters('requireTagOwnerAssignmentId')]"
-                    actions = {
-                      Fix_Owner_Tag = {
-                        type = "Http"
-                        inputs = {
-                          method = "PATCH"
-                          uri    = "@concat(triggerBody()?['resourceId'],'?api-version=2021-04-01')"
-                          headers = {
-                            "Content-Type" = "application/json"
-                          }
-                          body = {
-                            tags = {
-                              Owner = "AutoAssigned"
-                            }
-                          }
-                          authentication = {
-                            type     = "ManagedServiceIdentity"
-                            audience = "https://management.azure.com/"
-                          }
-                        }
-                      }
-                    }
-                  }
-
-                  # 2️⃣ Secure transfer for Storage Accounts
+                  # 1️⃣ Secure transfer for Storage Accounts
                   Secure_Transfer_Storage = {
                     case = "[parameters('secureTransferAssignmentId')]"
                     actions = {
@@ -165,7 +134,7 @@ resource "azurerm_resource_group_template_deployment" "builtin_policy_remediator
                     }
                   }
 
-                  # 3️⃣ Allowed locations : on marque la ressource comme non conforme
+                  # 2️⃣ Allowed locations : on marque la ressource comme non conforme
                   Allowed_Locations = {
                     case = "[parameters('allowedLocationsAssignmentId')]"
                     actions = {
