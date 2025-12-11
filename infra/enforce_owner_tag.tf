@@ -72,4 +72,13 @@ resource "azurerm_subscription_policy_assignment" "modify_owner_tag_assignment" 
   display_name         = "Modify Owner Tag Assignment"
   subscription_id      = data.azurerm_subscription.current.id
   policy_definition_id = azurerm_policy_definition.modify_owner_tag.id
+
+  # Obligatoire pour les policies "modify"
+  identity {
+    type = "SystemAssigned"
+  }
+
+  # Obligatoire aussi quand tu mets une identity
+  # Prends la même région que ton RG principal
+  location = azurerm_resource_group.rg.location
 }
