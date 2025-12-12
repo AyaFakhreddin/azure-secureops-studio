@@ -37,7 +37,7 @@ resource "azurerm_subscription_policy_assignment" "assign_deploy_diag_stream" {
   policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/237e0f7e-b0e8-4ec4-ad46-8c12cb66d673"
 
   # Obligatoire pour DeployIfNotExists
-  location = "francecentral"
+ location = "francecentral"
 
   identity {
     type = "SystemAssigned"
@@ -60,4 +60,4 @@ resource "azurerm_subscription_policy_assignment" "assign_deploy_diag_stream" {
       value = "True"
     }
   })
-}
+ }
