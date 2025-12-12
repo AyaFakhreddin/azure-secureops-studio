@@ -67,7 +67,10 @@ jobs:
         run: terraform apply -input=false -auto-approve 
 
       - name: Run auto-remediation (existing resources)
+        if: vars.ENABLE_BOOTSTRAP_REMEDIATION == 'true'
         run: |
           chmod +x infra/scripts/remediation_builtin.sh
+          chmod +x infra/scripts/remediation_owner_tag.sh
+
           infra/scripts/remediation_builtin.sh "${{ vars.TF_SUBSCRIPTION_RESOURCE_ID }}"
-      
+          infra/scripts/remediation_owner_tag.sh "${{ vars.TF_SUBSCRIPTION_RESOURCE_ID }}"
