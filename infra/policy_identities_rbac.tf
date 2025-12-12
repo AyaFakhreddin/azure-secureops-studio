@@ -27,11 +27,11 @@ resource "azurerm_role_assignment" "policy_stream_diag_contributor" {
   principal_id         = azurerm_subscription_policy_assignment.assign_deploy_diag_stream.identity[0].principal_id
 }
 
-######################################
+###################################
 # 2 Storage secure transfer (Modify)
 # Policy assignment: assign_modify_secure_transfer
 # Needs permission to update storage accounts
-######################################
+###################################
 resource "azurerm_role_assignment" "policy_storage_rg_contributor" {
   scope                = data.azurerm_resource_group.aoss_rg.id
   role_definition_name = "Contributor"
