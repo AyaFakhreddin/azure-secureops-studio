@@ -87,6 +87,15 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   }
 }
 TEMPLATE
+}
 
+# Donne le rôle Contributor à la Logic App sur la subscription
+resource "azurerm_role_assignment" "la_owner_tag_contributor" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Contributor"
 
+  # On récupère le principalId depuis l'output de l'ARM template
+  principal_id = jsondecode(
+    azurerm_resource_group_template_deployment.la_owner_tag.output_content
+  ).logicAppPrincipalId.value
 }
