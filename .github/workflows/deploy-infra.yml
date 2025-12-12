@@ -68,5 +68,6 @@ jobs:
 
       - name: Run auto-remediation (existing resources)
         run: |
-          chmod +x scripts/remediation_builtin.sh
-          scripts/remediation_builtin.sh
+          chmod +x infra/scripts/remediation_builtin.sh
+          infra/scripts/remediation_builtin.sh "${{ vars.TF_SUBSCRIPTION_RESOURCE_ID }}"
+      
