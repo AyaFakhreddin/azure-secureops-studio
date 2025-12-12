@@ -6,4 +6,3 @@ terraform {
     key                  = "secureops/terraform.tfstate"
   }
 }
-E
