@@ -3,7 +3,7 @@
 data "azurerm_subscription" "current" {}
 
 # =========================================================
-# 1) POLICY DENY : Enforce Owner Tag (bloque les nouveaux)
+# 1 POLICY DENY : Enforce Owner Tag (bloque les nouveaux)
 # =========================================================
 resource "azurerm_policy_definition" "enforce_owner_tag" {
   name         = "enforce-owner-tag"
