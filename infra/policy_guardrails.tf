@@ -1,6 +1,3 @@
-# ==========================================
-# 1) Deny Public IP addresses
-# ==========================================
 resource "azurerm_policy_definition" "deny_public_ip" {
   name         = "deny-public-ip"
   display_name = "Deny Public IP addresses"
@@ -31,9 +28,6 @@ resource "azurerm_subscription_policy_assignment" "deny_public_ip_assignment" {
   policy_definition_id = azurerm_policy_definition.deny_public_ip.id
 }
 
-# ==========================================
-# 2) Audit Storage Accounts without diag logs
-# ==========================================
 resource "azurerm_policy_definition" "require_diag_logs" {
   name         = "audit-storage-diag-logs"
   display_name = "Audit missing diagnostic settings on Storage Accounts"
@@ -71,9 +65,9 @@ resource "azurerm_subscription_policy_assignment" "require_diag_logs_assignment"
   policy_definition_id = azurerm_policy_definition.require_diag_logs.id
 }
 
-# ==========================================
-# 3) Audit Missing Owner Tag (pour Logic App)
-# ==========================================
+# ====================================
+# NEW: Audit Missing Owner Tag (for remediation)
+# ====================================
 resource "azurerm_policy_definition" "audit_owner_tag" {
   name         = "audit-owner-tag"
   display_name = "Audit Missing Owner Tag"
