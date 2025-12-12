@@ -72,4 +72,12 @@ resource "azurerm_subscription_policy_assignment" "modify_owner_tag_assignment" 
   display_name         = "Modify Owner Tag Assignment"
   subscription_id      = data.azurerm_subscription.current.id
   policy_definition_id = azurerm_policy_definition.modify_owner_tag.id
+    # Obligatoire pour les policies Modify / DeployIfNotExists
+  location = "francecentral"
+
+  # Obligatoire : managed identity pour exécuter le Modify
+  identity {
+    type = "SystemAssigned"
+  }
+
 }

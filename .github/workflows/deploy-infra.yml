@@ -6,6 +6,7 @@ on:
     branches: [ main ]
     paths:
       - "infra/**"
+      - "scripts/**"
 
 permissions:
   id-token: write
@@ -64,3 +65,8 @@ jobs:
           TF_VAR_subscription_id:          ${{ vars.TF_SUBSCRIPTION_RESOURCE_ID }}
           TF_VAR_log_analytics_workspace_id: ${{ vars.TF_LOG_ANALYTICS_WORKSPACE_ID }}
         run: terraform apply -input=false -auto-approve 
+
+      - name: Run auto-remediation (existing resources)
+        run: |
+          chmod +x scripts/remediation_builtin.sh
+          scripts/remediation_builtin.sh
