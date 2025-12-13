@@ -15,6 +15,10 @@ resource "azurerm_log_analytics_workspace" "law" {
 
   sku               = "PerGB2018"
   retention_in_days = 30
+
+  tags = {
+    Owner = "AutoAssigned"  # or your real name/team value
+  }
 }
 
 resource "azurerm_storage_account" "st" {
