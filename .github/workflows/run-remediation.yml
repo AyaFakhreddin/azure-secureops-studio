@@ -1,0 +1,56 @@
+name: Run Remediation
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Choose what to run"
+        required: true
+        default: "owner_tag"
+        type: choice
+        options:
+          - owner_tag
+          - builtin
+          - both
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Fix line endings (CRLF -> LF)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y dos2unix
+          dos2unix infra/scripts/*.sh || true
+
+      - name: Run remediation scripts
+        run: |
+          set -euo pipefail
+          chmod +x infra/scripts/*.sh
+
+          SUBRID="${{ vars.TF_SUBSCRIPTION_RESOURCE_ID }}"
+          echo "Using subscription: $SUBRID"
+          echo "Mode: ${{ inputs.mode }}"
+
+          if [ "${{ inputs.mode }}" = "builtin" ]; then
+            infra/scripts/remediation_builtin.sh "$SUBRID"
+          elif [ "${{ inputs.mode }}" = "owner_tag" ]; then
+            infra/scripts/remediate_owner_tag_via_logicapp.sh "$SUBRID"
+          else
+            infra/scripts/remediation_builtin.sh "$SUBRID"
+            infra/scripts/remediate_owner_tag_via_logicapp.sh "$SUBRID"
+          fi

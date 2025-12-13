@@ -33,20 +33,18 @@ if [[ -z "${RESOURCE_IDS// }" ]]; then
   exit 0
 fi
 
-echo "🌐 Getting Logic App callback URL..."
-CALLBACK_URL=$(az logic workflow list-callback-url \
-  --subscription "$SUBSCRIPTION_ID" \
-  --resource-group "$RG" \
-  --name "$LOGICAPP_NAME" \
-  --trigger-name "$TRIGGER_NAME" \
+echo "🌐 Getting Logic App callback URL via ARM..."
+CALLBACK_URL=$(az rest --method post \
+  --url "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.Logic/workflows/$LOGICAPP_NAME/triggers/$TRIGGER_NAME/listCallbackUrl?api-version=2016-06-01" \
   --query "value" -o tsv)
 
 if [[ -z "${CALLBACK_URL// }" ]]; then
-  echo "❌ Could not retrieve callback URL. Check RG/name/trigger."
+  echo "❌ Could not retrieve callback URL (empty). Check RG/name/trigger and permissions."
   exit 1
 fi
 
 echo "✅ Callback URL acquired."
+
 
 COUNT=0
 FAIL=0
