@@ -1,25 +1,21 @@
-name: Run Remediation
+name: Remediate After Deploy
 
 on:
-  workflow_dispatch:
-    inputs:
-      mode:
-        description: "Choose what to run"
-        required: true
-        default: "owner_tag"
-        type: choice
-        options:
-          - owner_tag
-          - builtin
-          - both
+  workflow_run:
+    workflows: ["Deploy Infra"]   # must match EXACT name of your deploy workflow
+    types: [completed]
 
 permissions:
   id-token: write
   contents: read
+  
 
 jobs:
   remediate:
+    # Run only if Deploy Infra succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -37,20 +33,13 @@ jobs:
           sudo apt-get install -y dos2unix
           dos2unix infra/scripts/*.sh || true
 
-      - name: Run remediation scripts
+      - name: Run baseline remediation (both)
         run: |
           set -euo pipefail
           chmod +x infra/scripts/*.sh
 
           SUBRID="${{ vars.TF_SUBSCRIPTION_RESOURCE_ID }}"
           echo "Using subscription: $SUBRID"
-          echo "Mode: ${{ inputs.mode }}"
 
-          if [ "${{ inputs.mode }}" = "builtin" ]; then
-            infra/scripts/remediation_builtin.sh "$SUBRID"
-          elif [ "${{ inputs.mode }}" = "owner_tag" ]; then
-            infra/scripts/remediate_owner_tag_via_logicapp.sh "$SUBRID"
-          else
-            infra/scripts/remediation_builtin.sh "$SUBRID"
-            infra/scripts/remediate_owner_tag_via_logicapp.sh "$SUBRID"
-          fi
+          infra/scripts/remediation_builtin.sh "$SUBRID"
+          infra/scripts/remediate_owner_tag_via_logicapp.sh "$SUBRID"

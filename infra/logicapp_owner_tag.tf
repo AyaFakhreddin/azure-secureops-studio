@@ -57,7 +57,7 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
               "type": "Http",
               "inputs": {
                 "method": "PATCH",
-                "uri": "@{concat('https://management.azure.com', triggerBody()?['resourceId'], '?api-version=2021-04-01')}",
+                "uri": "@{concat('https://management.azure.com', triggerBody()?['resourceId'], '?api-version=2022-10-01')}",
                 "headers": {
                   "Content-Type": "application/json"
                 },
@@ -99,3 +99,6 @@ resource "azurerm_role_assignment" "la_owner_tag_contributor" {
     azurerm_resource_group_template_deployment.la_owner_tag.output_content
   ).logicAppPrincipalId.value
 }
+
+
+
