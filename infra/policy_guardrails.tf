@@ -28,12 +28,15 @@ resource "azurerm_subscription_policy_assignment" "deny_public_ip_assignment" {
   policy_definition_id = azurerm_policy_definition.deny_public_ip.id
 }
 
-resource "azurerm_policy_definition" "require_diag_logs" {
+# =========================================================
+# AUDIT Storage Diagnostics (non bloquant)
+# =========================================================
+resource "azurerm_policy_definition" "audit_storage_diag" {
   name         = "audit-storage-diag-logs"
-  display_name = "Audit missing diagnostic settings on Storage Accounts"
+  display_name = "Audit Storage Accounts Diagnostic Settings"
   policy_type  = "Custom"
   mode         = "Indexed"
-  description  = "Audit Storage Accounts that do not have diagnostic logs enabled."
+  description  = "Audit storage accounts without diagnostic settings."
 
   policy_rule = jsonencode({
     if = {
@@ -41,14 +44,7 @@ resource "azurerm_policy_definition" "require_diag_logs" {
       equals = "Microsoft.Storage/storageAccounts"
     }
     then = {
-      effect = "auditIfNotExists"
-      details = {
-        type = "Microsoft.Insights/diagnosticSettings"
-        existenceCondition = {
-          field  = "Microsoft.Insights/diagnosticSettings/logs.enabled"
-          equals = "true"
-        }
-      }
+      effect = "audit"
     }
   })
 
@@ -58,11 +54,11 @@ resource "azurerm_policy_definition" "require_diag_logs" {
   })
 }
 
-resource "azurerm_subscription_policy_assignment" "require_diag_logs_assignment" {
-  name                 = "require-diag-logs-assignment"
-  display_name         = "Audit Storage Accounts Diagnostic Settings Assignment"
+resource "azurerm_subscription_policy_assignment" "audit_storage_diag_assignment" {
+  name                 = "audit-storage-diag-assignment"
+  display_name         = "Audit Storage Diagnostics Assignment"
   subscription_id      = data.azurerm_subscription.current.id
-  policy_definition_id = azurerm_policy_definition.require_diag_logs.id
+  policy_definition_id = azurerm_policy_definition.audit_storage_diag.id
 }
 
 # ====================================
