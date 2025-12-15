@@ -68,7 +68,7 @@ resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_as
   name                 = "deploy-storage-diagnostics-assignment"
   subscription_id      = data.azurerm_subscription.current.id
   policy_definition_id = azurerm_policy_definition.deploy_storage_diagnostics.id
-
+  location = azurerm_resource_group.rg.location
   identity {
     type = "SystemAssigned"
   }

@@ -32,7 +32,7 @@ resource "azurerm_subscription_policy_assignment" "deny_public_ip_assignment" {
 # AUDIT Storage Diagnostics (non bloquant)
 # =========================================================
 resource "azurerm_policy_definition" "audit_storage_diag" {
-  name         = "audit-storage-diag-logs"
+  name         = "audit-storage-diagnostic-logs"
   display_name = "Audit Storage Accounts Diagnostic Settings"
   policy_type  = "Custom"
   mode         = "Indexed"
