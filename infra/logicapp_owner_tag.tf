@@ -3,10 +3,6 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   resource_group_name = azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
-  depends_on = [
-    azurerm_subscription_policy_assignment.assign_allowed_locations
-  ]
-
   template_content = <<TEMPLATE
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -21,11 +17,11 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
       "apiVersion": "2019-05-01",
       "name": "[variables('logicAppName')]",
       "location": "[resourceGroup().location]",
-      "tags": {
-        "Owner": "NotSet"
-      },
       "identity": {
         "type": "SystemAssigned"
+      },
+      "tags": {
+        "Owner": "NotSet"
       },
       "properties": {
         "state": "Enabled",
@@ -41,19 +37,15 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "resourceId": {
-                      "type": "string"
-                    }
+                    "resourceId": { "type": "string" }
                   },
-                  "required": [
-                    "resourceId"
-                  ]
+                  "required": ["resourceId"]
                 }
               }
             }
           },
           "actions": {
-            "Initialize_apiVersion": {
+            "Init_apiVersion": {
               "type": "InitializeVariable",
               "inputs": {
                 "variables": [
@@ -65,64 +57,48 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
                 ]
               }
             },
-            "Set_apiVersion_workspace": {
-              "type": "If",
-              "expression": {
-                "contains": [
-                  "@{triggerBody()?['resourceId']}",
-                  "/providers/Microsoft.OperationalInsights/workspaces/"
-                ]
-              },
-              "actions": {
-                "SetVariable_workspace": {
-                  "type": "SetVariable",
-                  "inputs": {
-                    "name": "apiVersion",
-                    "value": "2022-10-01"
+
+            "Select_apiVersion": {
+              "type": "Switch",
+              "expression": "@{toLower(triggerBody()?['resourceId'])}",
+              "cases": {
+                "workspace": {
+                  "case": "@{contains(toLower(triggerBody()?['resourceId']), '/providers/microsoft.operationalinsights/workspaces/')}",
+                  "actions": {
+                    "Set_workspace_api": {
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "apiVersion",
+                        "value": "2022-10-01"
+                      }
+                    }
+                  }
+                },
+                "solution": {
+                  "case": "@{contains(toLower(triggerBody()?['resourceId']), '/providers/microsoft.operationsmanagement/solutions/')}",
+                  "actions": {
+                    "Set_solution_api": {
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "apiVersion",
+                        "value": "2015-11-01-preview"
+                      }
+                    }
                   }
                 }
               },
-              "else": {
+              "default": {
                 "actions": {}
               },
               "runAfter": {
-                "Initialize_apiVersion": [
-                  "Succeeded"
-                ]
+                "Init_apiVersion": ["Succeeded"]
               }
             },
-            "Set_apiVersion_solution": {
-              "type": "If",
-              "expression": {
-                "contains": [
-                  "@{triggerBody()?['resourceId']}",
-                  "/providers/Microsoft.OperationsManagement/solutions/"
-                ]
-              },
-              "actions": {
-                "SetVariable_solution": {
-                  "type": "SetVariable",
-                  "inputs": {
-                    "name": "apiVersion",
-                    "value": "2015-11-01-preview"
-                  }
-                }
-              },
-              "else": {
-                "actions": {}
-              },
-              "runAfter": {
-                "Set_apiVersion_workspace": [
-                  "Succeeded"
-                ]
-              }
-            },
+
             "patch_owner_tag": {
               "type": "Http",
               "runAfter": {
-                "Set_apiVersion_solution": [
-                  "Succeeded"
-                ]
+                "Select_apiVersion": ["Succeeded"]
               },
               "inputs": {
                 "method": "PATCH",
@@ -143,8 +119,7 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
             }
           },
           "outputs": {}
-        },
-        "parameters": {}
+        }
       }
     }
   ],
