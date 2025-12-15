@@ -3,10 +3,6 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   resource_group_name = azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
-  depends_on = [
-    azurerm_subscription_policy_assignment.assign_allowed_locations
-  ]
-
   template_content = <<TEMPLATE
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -21,9 +17,6 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
       "apiVersion": "2019-05-01",
       "name": "[variables('logicAppName')]",
       "location": "[resourceGroup().location]",
-      "tags": {
-        "Owner": "NotSet"
-      },
       "identity": {
         "type": "SystemAssigned"
       },
@@ -32,7 +25,6 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
         "definition": {
           "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
           "contentVersion": "1.0.0.0",
-          "parameters": {},
           "triggers": {
             "manual": {
               "type": "Request",
@@ -41,13 +33,9 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "resourceId": {
-                      "type": "string"
-                    }
+                    "resourceId": { "type": "string" }
                   },
-                  "required": [
-                    "resourceId"
-                  ]
+                  "required": ["resourceId"]
                 }
               }
             }
@@ -66,11 +54,16 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
               }
             },
 
-            "Set_apiVersion_workspace": {
+            "If_workspace": {
               "type": "If",
-              "expression": "@{contains(toLower(triggerBody()?['resourceId']), '/providers/microsoft.operationalinsights/workspaces/')}",
+              "expression": {
+                "contains": [
+                  "@{toLower(triggerBody()?['resourceId'])}",
+                  "/providers/microsoft.operationalinsights/workspaces/"
+                ]
+              },
               "actions": {
-                "SetVariable_workspace": {
+                "Set_workspace_api": {
                   "type": "SetVariable",
                   "inputs": {
                     "name": "apiVersion",
@@ -78,21 +71,22 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
                   }
                 }
               },
-              "else": {
-                "actions": {}
-              },
+              "else": { "actions": {} },
               "runAfter": {
-                "Initialize_apiVersion": [
-                  "Succeeded"
-                ]
+                "Initialize_apiVersion": ["Succeeded"]
               }
             },
 
-            "Set_apiVersion_solution": {
+            "If_solution": {
               "type": "If",
-              "expression": "@{contains(toLower(triggerBody()?['resourceId']), '/providers/microsoft.operationsmanagement/solutions/')}",
+              "expression": {
+                "contains": [
+                  "@{toLower(triggerBody()?['resourceId'])}",
+                  "/providers/microsoft.operationsmanagement/solutions/"
+                ]
+              },
               "actions": {
-                "SetVariable_solution": {
+                "Set_solution_api": {
                   "type": "SetVariable",
                   "inputs": {
                     "name": "apiVersion",
@@ -100,22 +94,16 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
                   }
                 }
               },
-              "else": {
-                "actions": {}
-              },
+              "else": { "actions": {} },
               "runAfter": {
-                "Set_apiVersion_workspace": [
-                  "Succeeded"
-                ]
+                "If_workspace": ["Succeeded"]
               }
             },
 
-            "patch_owner_tag": {
+            "Patch_owner_tag": {
               "type": "Http",
               "runAfter": {
-                "Set_apiVersion_solution": [
-                  "Succeeded"
-                ]
+                "If_solution": ["Succeeded"]
               },
               "inputs": {
                 "method": "PATCH",
@@ -134,10 +122,8 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
                 }
               }
             }
-          },
-          "outputs": {}
-        },
-        "parameters": {}
+          }
+        }
       }
     }
   ],
