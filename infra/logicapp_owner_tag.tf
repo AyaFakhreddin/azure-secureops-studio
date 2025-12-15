@@ -3,6 +3,11 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
   resource_group_name = azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
+    depends_on = [
+    azurerm_subscription_policy_assignment.assign_allowed_locations
+  ]
+
+
   template_content = <<TEMPLATE
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -17,6 +22,9 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
       "apiVersion": "2019-05-01",
       "name": "[variables('logicAppName')]",
       "location": "[resourceGroup().location]",
+      "tags": {
+        "Owner": "NotSet"
+      },
       "identity": {
         "type": "SystemAssigned"
       },
