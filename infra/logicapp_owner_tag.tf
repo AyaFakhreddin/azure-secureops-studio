@@ -53,11 +53,80 @@ resource "azurerm_resource_group_template_deployment" "la_owner_tag" {
             }
           },
           "actions": {
+            "Initialize_apiVersion": {
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "apiVersion",
+                    "type": "string",
+                    "value": "2021-04-01"
+                  }
+                ]
+              }
+            },
+            "Set_apiVersion_workspace": {
+              "type": "If",
+              "expression": {
+                "contains": [
+                  "@{triggerBody()?['resourceId']}",
+                  "/providers/Microsoft.OperationalInsights/workspaces/"
+                ]
+              },
+              "actions": {
+                "SetVariable_workspace": {
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "apiVersion",
+                    "value": "2022-10-01"
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Initialize_apiVersion": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Set_apiVersion_solution": {
+              "type": "If",
+              "expression": {
+                "contains": [
+                  "@{triggerBody()?['resourceId']}",
+                  "/providers/Microsoft.OperationsManagement/solutions/"
+                ]
+              },
+              "actions": {
+                "SetVariable_solution": {
+                  "type": "SetVariable",
+                  "inputs": {
+                    "name": "apiVersion",
+                    "value": "2015-11-01-preview"
+                  }
+                }
+              },
+              "else": {
+                "actions": {}
+              },
+              "runAfter": {
+                "Set_apiVersion_workspace": [
+                  "Succeeded"
+                ]
+              }
+            },
             "patch_owner_tag": {
               "type": "Http",
+              "runAfter": {
+                "Set_apiVersion_solution": [
+                  "Succeeded"
+                ]
+              },
               "inputs": {
                 "method": "PATCH",
-                "uri": "@{concat('https://management.azure.com', triggerBody()?['resourceId'], '?api-version=2022-10-01')}",
+                "uri": "@{concat('https://management.azure.com', triggerBody()?['resourceId'], '?api-version=', variables('apiVersion'))}",
                 "headers": {
                   "Content-Type": "application/json"
                 },
