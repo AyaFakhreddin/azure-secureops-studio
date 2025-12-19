@@ -43,4 +43,4 @@ jobs:
 
           infra/scripts/remediation_builtin.sh "$SUBRID"
           infra/scripts/remediate_owner_tag_via_logicapp.sh "$SUBRID"
-          infra/scripts/remediation_diagnostic_storage.sh "$SUBRID"
+          infra/scripts/remediation_diagnos_stor.sh "$SUBRID" "deploy-storage-diagnostics-assignment"

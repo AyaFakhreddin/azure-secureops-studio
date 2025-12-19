@@ -1,3 +1,4 @@
+# 1 DENY Public IP (no remediation — you cannot auto-fix safely)
 resource "azurerm_policy_definition" "deny_public_ip" {
   name         = "deny-public-ip"
   display_name = "Deny Public IP addresses"
@@ -52,13 +53,6 @@ resource "azurerm_policy_definition" "audit_storage_diag" {
     category = "Monitoring"
     version  = "1.0.0"
   })
-}
-
-resource "azurerm_subscription_policy_assignment" "audit_storage_diag_assignment" {
-  name                 = "audit-storage-diag-assignment"
-  display_name         = "Audit Storage Diagnostics Assignment"
-  subscription_id      = data.azurerm_subscription.current.id
-  policy_definition_id = azurerm_policy_definition.audit_storage_diag.id
 }
 
 # ====================================
