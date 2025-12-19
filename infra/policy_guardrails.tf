@@ -1,4 +1,3 @@
-# 1 DENY Public IP (no remediation — you cannot auto-fix safely)
 resource "azurerm_policy_definition" "deny_public_ip" {
   name         = "deny-public-ip"
   display_name = "Deny Public IP addresses"
