@@ -9,29 +9,7 @@
 # - var.subscription_id (or use data.azurerm_subscription.current.id)
 # - var.log_analytics_workspace_id (LAW resource id)
 # - var.resource_group_name + var.resource_group_location (your RG)
-#
-# If you already have data/rg resources, just map these vars accordingly.
 
-variable "subscription_id" {
-  type = string
-}
-
-variable "log_analytics_workspace_id" {
-  type = string
-}
-
-variable "resource_group_name" {
-  type = string
-}
-
-variable "resource_group_location" {
-  type = string
-}
-
-# Optional: scope RG id if you prefer passing it directly
-variable "resource_group_id" {
-  type = string
-}
 
 # ------------------------------------------------------------
 # POLICY DEFINITION (DeployIfNotExists) - FIXED categories
