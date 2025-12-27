@@ -99,7 +99,6 @@ resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_as
 
 # ====================================
 # Critical: give the policy assignment MI rights on the RG
-# (this fixes your PolicyAuthorizationFailed)
 # ====================================
 
 resource "azurerm_role_assignment" "deploy_storage_diag_rg_contributor" {
