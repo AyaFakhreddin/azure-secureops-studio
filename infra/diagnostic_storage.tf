@@ -1,22 +1,51 @@
-########################################
-# diagnostic_storage.tf
-# Deploy Storage Diagnostics to Log Analytics (Custom DINE)
-########################################
+#############################################
+# diagnostic_storage.tf  (FINAL - WORKING)
+#############################################
 
-# Policy definition
+# ------------------------------------------------------------
+# VARIABLES (make sure these exist in your project)
+# ------------------------------------------------------------
+# You MUST provide:
+# - var.subscription_id (or use data.azurerm_subscription.current.id)
+# - var.log_analytics_workspace_id (LAW resource id)
+# - var.resource_group_name + var.resource_group_location (your RG)
+#
+# If you already have data/rg resources, just map these vars accordingly.
+
+variable "subscription_id" {
+  type = string
+}
+
+variable "log_analytics_workspace_id" {
+  type = string
+}
+
+variable "resource_group_name" {
+  type = string
+}
+
+variable "resource_group_location" {
+  type = string
+}
+
+# Optional: scope RG id if you prefer passing it directly
+variable "resource_group_id" {
+  type = string
+}
+
+# ------------------------------------------------------------
+# POLICY DEFINITION (DeployIfNotExists) - FIXED categories
+# ------------------------------------------------------------
 resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
   name         = "deploy-storage-diagnostics"
   display_name = "Deploy Storage Diagnostics to Log Analytics"
   policy_type  = "Custom"
   mode         = "Indexed"
-  description  = "Deploy diagnostic settings to Storage Accounts and send logs to Log Analytics."
+  description  = "Deploy diagnostic settings on Storage Accounts to send logs to Log Analytics."
 
   parameters = jsonencode({
     logAnalyticsWorkspaceId = {
       type = "String"
-      metadata = {
-        displayName = "Log Analytics Workspace Resource ID"
-      }
     }
   })
 
@@ -30,19 +59,11 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
       details = {
         type = "Microsoft.Insights/diagnosticSettings"
 
-        # If a diagnostic setting exists with logs enabled, consider compliant
-        existenceCondition = {
-          allOf = [
-            {
-              field  = "Microsoft.Insights/diagnosticSettings/logs.enabled"
-              equals = "true"
-            },
-            {
-              field  = "Microsoft.Insights/diagnosticSettings/workspaceId"
-              equals = "[parameters('logAnalyticsWorkspaceId')]"
-            }
-          ]
-        }
+        # Needed so the policy can create the deployment + write diag settings
+        roleDefinitionIds = [
+          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c", # Contributor
+          "/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"  # Monitoring Contributor
+        ]
 
         deployment = {
           properties = {
@@ -60,22 +81,25 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
               }
               resources = [
                 {
-                  type       = "Microsoft.Insights/diagnosticSettings"
+                  type       = "Microsoft.Storage/storageAccounts/providers/diagnosticSettings"
                   apiVersion = "2021-05-01-preview"
-                  name       = "set-by-policy"
-
-                  # IMPORTANT: scope is the Storage Account
-                  scope = "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-
+                  name       = "[concat(parameters('storageAccountName'), '/Microsoft.Insights/set-by-policy')]"
                   properties = {
                     workspaceId = "[parameters('workspaceId')]"
+
+                    # FIX: avoid invalid categories like StorageRead/Write/Delete
                     logs = [
-                      { category = "StorageRead",   enabled = true },
-                      { category = "StorageWrite",  enabled = true },
-                      { category = "StorageDelete", enabled = true }
+                      {
+                        categoryGroup = "allLogs"
+                        enabled       = true
+                      }
                     ]
+
                     metrics = [
-                      { category = "Transaction", enabled = true }
+                      {
+                        category = "Transaction"
+                        enabled  = true
+                      }
                     ]
                   }
                 }
@@ -83,33 +107,27 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
             }
           }
         }
-
-        # Permissions needed by the policy assignment identity
-        roleDefinitionIds = [
-          # Contributor (deployments/write)
-          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
-          # Monitoring Contributor (write diagnostic settings)
-          "/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"
-        ]
       }
     }
   })
 
   metadata = jsonencode({
     category = "Monitoring"
-    version  = "1.0.1"
+    version  = "1.0.0"
   })
 }
 
-# Policy assignment (WITH identity)
+# ------------------------------------------------------------
+# POLICY ASSIGNMENT (with identity + location)
+# IMPORTANT: location is REQUIRED when identity is used
+# ------------------------------------------------------------
 resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_assignment" {
   name                 = "deploy-storage-diagnostics-assignment"
   display_name         = "Deploy Storage Diagnostics Assignment"
-  subscription_id      = data.azurerm_subscription.current.id
+  subscription_id      = var.subscription_id
   policy_definition_id = azurerm_policy_definition.deploy_storage_diagnostics.id
 
-  # REQUIRED because identity exists
-  location = azurerm_resource_group.rg.location
+  location = var.resource_group_location
 
   identity {
     type = "SystemAssigned"
@@ -117,20 +135,42 @@ resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_as
 
   parameters = jsonencode({
     logAnalyticsWorkspaceId = {
-      value = azurerm_log_analytics_workspace.law.id
+      value = var.log_analytics_workspace_id
     }
   })
 }
 
-# Give the assignment identity permissions on the RG
+# ------------------------------------------------------------
+# ROLE ASSIGNMENTS FOR THE POLICY ASSIGNMENT IDENTITY ON YOUR RG
+# This is mandatory, otherwise remediation deployments fail
+# ------------------------------------------------------------
 resource "azurerm_role_assignment" "deploy_storage_diag_rg_contributor" {
-  scope                = azurerm_resource_group.rg.id
+  scope                = var.resource_group_id
   role_definition_name = "Contributor"
   principal_id         = azurerm_subscription_policy_assignment.deploy_storage_diagnostics_assignment.identity[0].principal_id
 }
 
 resource "azurerm_role_assignment" "deploy_storage_diag_rg_monitoring_contrib" {
-  scope                = azurerm_resource_group.rg.id
+  scope                = var.resource_group_id
   role_definition_name = "Monitoring Contributor"
   principal_id         = azurerm_subscription_policy_assignment.deploy_storage_diagnostics_assignment.identity[0].principal_id
+}
+
+# ------------------------------------------------------------
+# AUTO REMEDIATION (Terraform triggers remediation for existing noncompliant)
+# ------------------------------------------------------------
+resource "azurerm_policy_remediation" "remediate_storage_diag" {
+  name                 = "remediate-storage-diag"
+  scope                = "/subscriptions/${var.subscription_id}"
+  policy_assignment_id = azurerm_subscription_policy_assignment.deploy_storage_diagnostics_assignment.id
+
+  resource_discovery_mode = "ExistingNonCompliant"
+
+  # IMPORTANT: must match location(s) where resources are
+  location_filters = [var.resource_group_location]
+
+  depends_on = [
+    azurerm_role_assignment.deploy_storage_diag_rg_contributor,
+    azurerm_role_assignment.deploy_storage_diag_rg_monitoring_contrib
+  ]
 }
