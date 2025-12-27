@@ -2,98 +2,85 @@
 set -euo pipefail
 
 RAW_SUB="${1:-}"
-if [[ -z "$RAW_SUB" ]]; then
-  echo "Usage: $0 <subscriptionResourceIdOrGuid>"
+if [ -z "$RAW_SUB" ]; then
+  echo "Subscription ID missing"
   exit 1
 fi
 
 SUBSCRIPTION_ID="${RAW_SUB##*/}"
 ASSIGNMENT_NAME="deploy-storage-diagnostics-assignment"
-LOCATION_FILTER="francecentral"   # change if needed
+LOCATION="francecentral"
 
 echo "Using subscription: $SUBSCRIPTION_ID"
 echo "Assignment: $ASSIGNMENT_NAME"
-echo "Location: $LOCATION_FILTER"
+echo "Location: $LOCATION"
 
-trigger_scan() {
+trigger_scan () {
   echo "Triggering Azure Policy evaluation..."
   az policy state trigger-scan --subscription "$SUBSCRIPTION_ID" >/dev/null
 }
 
-noncompliant_count() {
-  # IMPORTANT: policy states take time; query by assignment name.
+noncompliant_count () {
+  local assignment_name="$1"
   az policy state list \
     --subscription "$SUBSCRIPTION_ID" \
-    --query "[?policyAssignmentName=='$ASSIGNMENT_NAME' && complianceState=='NonCompliant'] | length(@)" \
+    --query "[?policyAssignmentName=='$assignment_name' && complianceState=='NonCompliant'] | length(@)" \
     -o tsv
 }
 
-create_remediation() {
-  local REM_NAME="remediate-storage-diag-$(date +%s)"
-  echo "Creating remediation: $REM_NAME"
+create_remediation () {
+  local remediation_name="$1"
+  echo "Creating remediation: $remediation_name"
 
   az policy remediation create \
-    --name "$REM_NAME" \
+    --name "$remediation_name" \
     --subscription "$SUBSCRIPTION_ID" \
     --policy-assignment "$ASSIGNMENT_NAME" \
     --resource-discovery-mode ExistingNonCompliant \
-    --location-filters "$LOCATION_FILTER" >/dev/null
-
-  echo "Remediation created: $REM_NAME"
-  echo "$REM_NAME"
+    --location "$LOCATION" \
+    -o jsonc
 }
 
-wait_remediation() {
-  local REM_NAME="$1"
-  echo "Waiting for completion..."
+wait_remediation () {
+  local remediation_name="$1"
 
+  echo "Waiting for completion..."
   for i in $(seq 1 40); do
-    STATE="$(az policy remediation show --subscription "$SUBSCRIPTION_ID" --name "$REM_NAME" --query provisioningState -o tsv)"
-    echo "[$i/40] provisioningState=$STATE"
-    if [[ "$STATE" == "Succeeded" || "$STATE" == "Failed" || "$STATE" == "Canceled" ]]; then
+    state="$(az policy remediation show --subscription "$SUBSCRIPTION_ID" --name "$remediation_name" --query provisioningState -o tsv || true)"
+    echo "[$i/40] provisioningState=$state"
+    if [ "$state" = "Succeeded" ] || [ "$state" = "Failed" ] || [ "$state" = "Canceled" ]; then
       break
     fi
     sleep 15
   done
 
-  echo "Remediation status:"
-  az policy remediation show --subscription "$SUBSCRIPTION_ID" --name "$REM_NAME" -o jsonc
+  echo "Final remediation object:"
+  az policy remediation show --subscription "$SUBSCRIPTION_ID" --name "$remediation_name" -o jsonc || true
 
-  echo ""
   echo "Deployment details per resource:"
-  az policy remediation deployment list \
-    --subscription "$SUBSCRIPTION_ID" \
-    --name "$REM_NAME" \
-    --query "[].{resource:remediatedResourceId,status:status,code:error.code,msg:error.message}" \
-    -o table || true
+  az policy remediation deployment list --subscription "$SUBSCRIPTION_ID" --name "$remediation_name" -o table || true
+
+  if [ "$state" != "Succeeded" ]; then
+    echo "ERROR: remediation ended with state=$state"
+    exit 1
+  fi
 }
 
-# 1) Scan
+# 1) scan + wait (policy states take time)
 trigger_scan
-
-# 2) Wait until policy states are likely ready (Azure Policy is slow)
 sleep 120
 
-# 3) Count
-COUNT="$(noncompliant_count)"
+# 2) detect noncompliant
+COUNT="$(noncompliant_count "$ASSIGNMENT_NAME")"
 echo "Non-compliant storage accounts (policy states): $COUNT"
 
-# If policy states still show 0 but portal shows resources to remediate,
-# it’s usually propagation delay. We retry a few times.
-if [[ "$COUNT" == "0" ]]; then
-  echo "States not ready yet. Retrying (up to 3 times)..."
-  for _ in 1 2 3; do
-    sleep 60
-    COUNT="$(noncompliant_count)"
-    echo "Non-compliant storage accounts (retry): $COUNT"
-    [[ "$COUNT" != "0" ]] && break
-  done
+if [ "$COUNT" -eq 0 ]; then
+  echo "No remediation needed."
+  exit 0
 fi
 
-if [[ "$COUNT" -gt 0 ]]; then
-  REM_NAME="$(create_remediation)"
-  wait_remediation "$REM_NAME"
-else
-  echo "No remediation needed (per policy states)."
-  echo "If Portal still shows 'Resources to remediate: 3', wait a few minutes then re-run."
-fi
+REM_NAME="remediate-storage-diag-$(date +%s)"
+create_remediation "$REM_NAME"
+wait_remediation "$REM_NAME"
+
+echo "Storage diagnostics remediation completed successfully."
