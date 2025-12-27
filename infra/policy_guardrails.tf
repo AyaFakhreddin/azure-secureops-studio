@@ -28,32 +28,6 @@ resource "azurerm_subscription_policy_assignment" "deny_public_ip_assignment" {
   policy_definition_id = azurerm_policy_definition.deny_public_ip.id
 }
 
-# =========================================================
-# AUDIT Storage Diagnostics (non bloquant)
-# =========================================================
-resource "azurerm_policy_definition" "audit_storage_diag" {
-  name         = "audit-storage-diagnostic-logs"
-  display_name = "Audit Storage Accounts Diagnostic Settings"
-  policy_type  = "Custom"
-  mode         = "Indexed"
-  description  = "Audit storage accounts without diagnostic settings."
-
-  policy_rule = jsonencode({
-    if = {
-      field  = "type"
-      equals = "Microsoft.Storage/storageAccounts"
-    }
-    then = {
-      effect = "audit"
-    }
-  })
-
-  metadata = jsonencode({
-    category = "Monitoring"
-    version  = "1.0.0"
-  })
-}
-
 # ====================================
 # NEW: Audit Missing Owner Tag (for remediation)
 # ====================================

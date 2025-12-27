@@ -1,12 +1,18 @@
-# ====================================
+########################################
 # Deploy Storage Diagnostics to Log Analytics (Custom DINE)
-# ====================================
+########################################
+
+# You MUST provide this from your existing Log Analytics workspace.
+# Example: pass it from output of your LAW module, or define it in variables.tf + tfvars.
+# variable "log_analytics_workspace_id" { type = string }
 
 resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
   name         = "deploy-storage-diagnostics"
   display_name = "Deploy Storage Diagnostics to Log Analytics"
   policy_type  = "Custom"
   mode         = "Indexed"
+
+  description = "Deploy diagnostic settings on Storage Accounts to send logs to a Log Analytics Workspace."
 
   parameters = jsonencode({
     logAnalyticsWorkspaceId = {
@@ -24,6 +30,14 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
       details = {
         type = "Microsoft.Insights/diagnosticSettings"
 
+        # IMPORTANT: These roles are what Azure Policy uses for the assignment MI.
+        # Monitoring Contributor = write diagnostic settings
+        # Contributor = create ARM deployments (deployments/write)
+        roleDefinitionIds = [
+          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c", # Contributor
+          "/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"  # Monitoring Contributor
+        ]
+
         deployment = {
           properties = {
             mode = "incremental"
@@ -32,17 +46,21 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
               workspaceId        = { value = "[parameters('logAnalyticsWorkspaceId')]" }
             }
             template = {
-              "$schema"        = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
-              contentVersion   = "1.0.0.0"
+              "$schema"      = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+              contentVersion = "1.0.0.0"
               parameters = {
                 storageAccountName = { type = "string" }
                 workspaceId        = { type = "string" }
               }
               resources = [
                 {
-                  type       = "Microsoft.Storage/storageAccounts/providers/diagnosticSettings"
+                  type       = "Microsoft.Insights/diagnosticSettings"
                   apiVersion = "2021-05-01-preview"
-                  name       = "[concat(parameters('storageAccountName'), '/Microsoft.Insights/set-by-policy')]"
+                  name       = "set-by-policy"
+
+                  # THIS is the correct way: diagnosticSettings scoped to the storage account
+                  scope = "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+
                   properties = {
                     workspaceId = "[parameters('workspaceId')]"
                     logs = [
@@ -56,14 +74,6 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
             }
           }
         }
-
-        # IMPORTANT:
-        # Add Contributor so the policy MI can create the ARM deployment in RG (deployments/write)
-        # + keep Monitoring Contributor (for diag settings write)
-        roleDefinitionIds = [
-          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c", # Contributor
-          "/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"  # Monitoring Contributor
-        ]
       }
     }
   })
@@ -74,16 +84,16 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
   })
 }
 
-# ====================================
-# Assignment (with managed identity + location)
-# ====================================
+########################################
+# Assignment (Identity + Location is REQUIRED)
+########################################
 resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_assignment" {
   name                 = "deploy-storage-diagnostics-assignment"
   display_name         = "Deploy Storage Diagnostics Assignment"
   subscription_id      = data.azurerm_subscription.current.id
   policy_definition_id = azurerm_policy_definition.deploy_storage_diagnostics.id
 
-  # REQUIRED when identity is used
+  # REQUIRED because identity is used
   location = azurerm_resource_group.rg.location
 
   identity {
@@ -97,10 +107,10 @@ resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_as
   })
 }
 
-# ====================================
-# Critical: give the policy assignment MI rights on the RG
-# ====================================
-
+########################################
+# CRITICAL: ensure assignment MI has rights on the RG
+# (this prevents PolicyAuthorizationFailed deployments/write)
+########################################
 resource "azurerm_role_assignment" "deploy_storage_diag_rg_contributor" {
   scope                = azurerm_resource_group.rg.id
   role_definition_name = "Contributor"
