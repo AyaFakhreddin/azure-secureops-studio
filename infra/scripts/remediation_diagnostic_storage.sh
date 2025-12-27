@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
 RAW_SUB="${1:-}"
@@ -15,72 +15,54 @@ echo "Using subscription: $SUBSCRIPTION_ID"
 echo "Assignment: $ASSIGNMENT_NAME"
 echo "Location: $LOCATION"
 
-trigger_scan () {
-  echo "Triggering Azure Policy evaluation..."
-  az policy state trigger-scan --subscription "$SUBSCRIPTION_ID" >/dev/null
-}
+echo "Triggering Azure Policy evaluation..."
+az policy state trigger-scan --subscription "$SUBSCRIPTION_ID" >/dev/null
+sleep 90
 
-noncompliant_count () {
-  local assignment_name="$1"
+COUNT=$(
   az policy state list \
     --subscription "$SUBSCRIPTION_ID" \
-    --query "[?policyAssignmentName=='$assignment_name' && complianceState=='NonCompliant'] | length(@)" \
+    --query "[?policyAssignmentName=='$ASSIGNMENT_NAME' && complianceState=='NonCompliant'] | length(@)" \
     -o tsv
-}
+)
 
-create_remediation () {
-  local remediation_name="$1"
-  echo "Creating remediation: $remediation_name"
-
-  az policy remediation create \
-    --name "$remediation_name" \
-    --subscription "$SUBSCRIPTION_ID" \
-    --policy-assignment "$ASSIGNMENT_NAME" \
-    --resource-discovery-mode ExistingNonCompliant \
-    --location "$LOCATION" \
-    -o jsonc
-}
-
-wait_remediation () {
-  local remediation_name="$1"
-
-  echo "Waiting for completion..."
-  for i in $(seq 1 40); do
-    state="$(az policy remediation show --subscription "$SUBSCRIPTION_ID" --name "$remediation_name" --query provisioningState -o tsv || true)"
-    echo "[$i/40] provisioningState=$state"
-    if [ "$state" = "Succeeded" ] || [ "$state" = "Failed" ] || [ "$state" = "Canceled" ]; then
-      break
-    fi
-    sleep 15
-  done
-
-  echo "Final remediation object:"
-  az policy remediation show --subscription "$SUBSCRIPTION_ID" --name "$remediation_name" -o jsonc || true
-
-  echo "Deployment details per resource:"
-  az policy remediation deployment list --subscription "$SUBSCRIPTION_ID" --name "$remediation_name" -o table || true
-
-  if [ "$state" != "Succeeded" ]; then
-    echo "ERROR: remediation ended with state=$state"
-    exit 1
-  fi
-}
-
-# 1) scan + wait (policy states take time)
-trigger_scan
-sleep 120
-
-# 2) detect noncompliant
-COUNT="$(noncompliant_count "$ASSIGNMENT_NAME")"
 echo "Non-compliant storage accounts (policy states): $COUNT"
-
-if [ "$COUNT" -eq 0 ]; then
+if [ "${COUNT:-0}" -eq 0 ]; then
   echo "No remediation needed."
   exit 0
 fi
 
 REM_NAME="remediate-storage-diag-$(date +%s)"
-create_remediation "$REM_NAME"
-wait_remediation "$REM_NAME"
+echo "Creating remediation: $REM_NAME"
 
-echo "Storage diagnostics remediation completed successfully."
+az policy remediation create \
+  --name "$REM_NAME" \
+  --subscription "$SUBSCRIPTION_ID" \
+  --policy-assignment "$ASSIGNMENT_NAME" \
+  --resource-discovery-mode ExistingNonCompliant \
+  --location-filters "$LOCATION" \
+  -o none
+
+echo "Remediation created. Waiting for completion..."
+for i in $(seq 1 60); do
+  STATE=$(az policy remediation show --subscription "$SUBSCRIPTION_ID" --name "$REM_NAME" --query provisioningState -o tsv)
+  echo "[$i/60] provisioningState=$STATE"
+  if [ "$STATE" = "Succeeded" ]; then
+    echo "Remediation SUCCEEDED."
+    exit 0
+  fi
+  if [ "$STATE" = "Failed" ]; then
+    echo "Remediation FAILED. Showing deployments:"
+    az policy remediation deployment list --subscription "$SUBSCRIPTION_ID" --name "$REM_NAME" -o table
+
+    echo ""
+    echo "Get exact ARM error using:"
+    echo "az policy remediation deployment list --subscription $SUBSCRIPTION_ID --name $REM_NAME --query \"[].deploymentId\" -o tsv"
+    exit 1
+  fi
+  sleep 20
+done
+
+echo "Timeout waiting remediation."
+az policy remediation show --subscription "$SUBSCRIPTION_ID" --name "$REM_NAME" -o jsonc
+exit 1
