@@ -7,6 +7,10 @@ variable "project_name" {
   default = "azure-secureops-studio"
 }
 
+variable "resource_group_name" {
+  type = string
+}
+
 variable "subscription_id" {
   type        = string
   description = "the subscription id for the compte"
