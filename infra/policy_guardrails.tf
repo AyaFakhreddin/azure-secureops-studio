@@ -2,7 +2,7 @@
 # Guardrails policies
 #############################
 
-# 1) Deny Public IP (NO remediation possible for "deny")
+# 1 Deny Public IP (NO remediation possible for "deny")
 resource "azurerm_policy_definition" "deny_public_ip" {
   name         = "deny-public-ip"
   display_name = "Deny Public IP addresses"
@@ -33,7 +33,7 @@ resource "azurerm_subscription_policy_assignment" "deny_public_ip_assignment" {
   policy_definition_id = azurerm_policy_definition.deny_public_ip.id
 }
 
-# 2) Audit missing Owner tag (remediated by Logic App, NOT by policy remediation task)
+# 2 Audit missing Owner tag (remediated by Logic App, NOT by policy remediation task)
 resource "azurerm_policy_definition" "audit_owner_tag" {
   name         = "audit-owner-tag"
   display_name = "Audit Missing Owner Tag"
