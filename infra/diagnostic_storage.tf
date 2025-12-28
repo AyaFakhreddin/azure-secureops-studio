@@ -1,7 +1,13 @@
-# ====================================
-# Deploy Storage Diagnostics to Log Analytics (Custom DINE)
-# ====================================
+# =========================
+# Look up existing RG (no RG ID variable needed)
+# =========================
+data "azurerm_resource_group" "target" {
+  name = var.resource_group_name
+}
 
+# =========================
+# Deploy Storage Diagnostics to Log Analytics (Custom DINE)
+# =========================
 resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
   name         = "deploy-storage-diagnostics"
   display_name = "Deploy Storage Diagnostics to Log Analytics"
@@ -40,29 +46,15 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
               }
               resources = [
                 {
-                  type       = "Microsoft.Insights/diagnosticSettings"
+                  type       = "Microsoft.Storage/storageAccounts/providers/diagnosticSettings"
                   apiVersion = "2021-05-01-preview"
-                  name       = "set-by-policy"
-
-                  # IMPORTANT: diagnosticSettings must be deployed AT THE STORAGE ACCOUNT SCOPE
-                  scope = "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
-
+                  name       = "[concat(parameters('storageAccountName'), '/Microsoft.Insights/set-by-policy')]"
                   properties = {
                     workspaceId = "[parameters('workspaceId')]"
-
-                    # Use categoryGroup instead of StorageRead/Write/Delete (your error)
                     logs = [
-                      {
-                        categoryGroup = "allLogs"
-                        enabled       = true
-                      }
-                    ]
-
-                    metrics = [
-                      {
-                        category = "AllMetrics"
-                        enabled  = true
-                      }
+                      # IMPORTANT: use categoryGroup, not StorageRead/Write/Delete (those fail on your account)
+                      { categoryGroup = "audit", enabled = true },
+                      { categoryGroup = "allLogs", enabled = true }
                     ]
                   }
                 }
@@ -71,7 +63,6 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
           }
         }
 
-        # Needed for policy's managed identity to deploy + write diag settings
         roleDefinitionIds = [
           "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c", # Contributor
           "/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"  # Monitoring Contributor
@@ -86,17 +77,16 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
   })
 }
 
-# ====================================
-# Assignment (with managed identity + location)
-# ====================================
-
+# =========================
+# Assignment (Managed Identity requires location)
+# IMPORTANT: location must be an Azure region string like "francecentral"
+# =========================
 resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_assignment" {
   name                 = "deploy-storage-diagnostics-assignment"
   display_name         = "Deploy Storage Diagnostics Assignment"
   subscription_id      = var.subscription_id
   policy_definition_id = azurerm_policy_definition.deploy_storage_diagnostics.id
 
-  # REQUIRED when identity is used at subscription scope
   location = "francecentral"
 
   identity {
@@ -110,18 +100,18 @@ resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_as
   })
 }
 
-# ====================================
-# Give policy assignment MI rights on the RG where Storage Accounts are
-# ====================================
-
+# =========================
+# Give the policy assignment MI rights on the target RG
+# (This is required so it can create PolicyDeployment_* deployments)
+# =========================
 resource "azurerm_role_assignment" "deploy_storage_diag_rg_contributor" {
-  scope                = var.resource_group_id
+  scope                = data.azurerm_resource_group.target.id
   role_definition_name = "Contributor"
   principal_id         = azurerm_subscription_policy_assignment.deploy_storage_diagnostics_assignment.identity[0].principal_id
 }
 
 resource "azurerm_role_assignment" "deploy_storage_diag_rg_monitoring_contrib" {
-  scope                = var.resource_group_id
+  scope                = data.azurerm_resource_group.target.id
   role_definition_name = "Monitoring Contributor"
   principal_id         = azurerm_subscription_policy_assignment.deploy_storage_diagnostics_assignment.identity[0].principal_id
 }
