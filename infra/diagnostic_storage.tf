@@ -1,13 +1,8 @@
-# =========================
-# Look up existing RG 
-# =========================
+# Hard reference to existing RG (no variables)
 data "azurerm_resource_group" "target" {
-  name = var.resource_group_name
+  name = "aoss-dev-rg-secops"
 }
 
-# =========================
-# Deploy Storage Diagnostics to Log Analytics (Custom DINE)
-# =========================
 resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
   name         = "deploy-storage-diagnostics"
   display_name = "Deploy Storage Diagnostics to Log Analytics"
@@ -52,8 +47,7 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
                   properties = {
                     workspaceId = "[parameters('workspaceId')]"
                     logs = [
-                      # IMPORTANT: use categoryGroup, not StorageRead/Write/Delete (those fail on your account)
-                      { categoryGroup = "audit", enabled = true },
+                      { categoryGroup = "audit",   enabled = true },
                       { categoryGroup = "allLogs", enabled = true }
                     ]
                   }
@@ -64,30 +58,19 @@ resource "azurerm_policy_definition" "deploy_storage_diagnostics" {
         }
 
         roleDefinitionIds = [
-          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c", # Contributor
-          "/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"  # Monitoring Contributor
+          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+          "/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"
         ]
       }
     }
   })
-
-  metadata = jsonencode({
-    category = "Monitoring"
-    version  = "1.0.0"
-  })
 }
 
-# =========================
-# Assignment (Managed Identity requires location)
-# IMPORTANT: location must be an Azure region string like "francecentral"
-# =========================
 resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_assignment" {
   name                 = "deploy-storage-diagnostics-assignment"
-  display_name         = "Deploy Storage Diagnostics Assignment"
   subscription_id      = var.subscription_id
   policy_definition_id = azurerm_policy_definition.deploy_storage_diagnostics.id
-
-  location = "francecentral"
+  location             = "francecentral"
 
   identity {
     type = "SystemAssigned"
@@ -100,18 +83,8 @@ resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_as
   })
 }
 
-# =========================
-# Give the policy assignment MI rights on the target RG
-# (This is required so it can create PolicyDeployment_* deployments)
-# =========================
-resource "azurerm_role_assignment" "deploy_storage_diag_rg_contributor" {
+resource "azurerm_role_assignment" "policy_rg_contributor" {
   scope                = data.azurerm_resource_group.target.id
   role_definition_name = "Contributor"
-  principal_id         = azurerm_subscription_policy_assignment.deploy_storage_diagnostics_assignment.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "deploy_storage_diag_rg_monitoring_contrib" {
-  scope                = data.azurerm_resource_group.target.id
-  role_definition_name = "Monitoring Contributor"
   principal_id         = azurerm_subscription_policy_assignment.deploy_storage_diagnostics_assignment.identity[0].principal_id
 }
