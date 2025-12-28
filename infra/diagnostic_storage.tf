@@ -82,7 +82,7 @@ resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_as
   subscription_id      = var.subscription_id
   policy_definition_id = azurerm_policy_definition.deploy_storage_diagnostics.id
 
-  location = var.resource_group_location
+  location = "francecentral"
 
   identity { type = "SystemAssigned" }
 
