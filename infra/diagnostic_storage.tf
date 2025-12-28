@@ -97,7 +97,7 @@ resource "azurerm_subscription_policy_assignment" "deploy_storage_diagnostics_as
   policy_definition_id = azurerm_policy_definition.deploy_storage_diagnostics.id
 
   # REQUIRED when identity is used at subscription scope
-  location = var.resource_group_location
+  location = "francecentral"
 
   identity {
     type = "SystemAssigned"

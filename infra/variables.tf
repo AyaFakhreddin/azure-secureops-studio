@@ -7,10 +7,6 @@ variable "project_name" {
   default = "azure-secureops-studio"
 }
 
-variable "resource_group_name" {
-  type = string
-}
-
 variable "subscription_id" {
   type        = string
   description = "the subscription id for the compte"
@@ -18,12 +14,4 @@ variable "subscription_id" {
 variable "log_analytics_workspace_id" {
   type        = string
   description = "Resource ID of the Log Analytics workspace used for diagnostics"
-}
-
-variable "resource_group_location" {
-  type = string
-}
-
-variable "resource_group_id" {
-  type = string
 }
