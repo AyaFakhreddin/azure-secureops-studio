@@ -1,5 +1,5 @@
 # =========================
-# Look up existing RG (no RG ID variable needed)
+# Look up existing RG 
 # =========================
 data "azurerm_resource_group" "target" {
   name = var.resource_group_name
