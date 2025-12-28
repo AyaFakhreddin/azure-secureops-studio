@@ -1,4 +1,4 @@
-# Hard reference to existing RG (no variables)
+# Hard reference to existing RG
 data "azurerm_resource_group" "target" {
   name = "aoss-dev-rg-secops"
 }
