@@ -15,7 +15,7 @@ variable "log_analytics_workspace_id" {
   type        = string
   description = "Resource ID of the Log Analytics workspace used for diagnostics"
 }
-variable "resource_group_id" {
+variable "RESOURCE_GROUP_ID" {
   type        = string
   description = "Resource ID of the resource group"
 }
