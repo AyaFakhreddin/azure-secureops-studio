@@ -1,5 +1,3 @@
-#############################
-
 # 1 Deny Public IP (NO remediation possible for "deny")
 resource "azurerm_policy_definition" "deny_public_ip" {
   name         = "deny-public-ip"
