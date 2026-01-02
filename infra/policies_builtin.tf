@@ -5,6 +5,7 @@
 # - Deploy Diagnostics for Stream Analytics to Log Analytics (DeployIfNotExists)
 
 
+
 # 1️⃣ Allowed locations (built-in)
 resource "azurerm_subscription_policy_assignment" "assign_allowed_locations" {
   name                 = "aoss-assign-allowed-locations"
