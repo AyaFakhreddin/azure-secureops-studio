@@ -20,8 +20,8 @@ variable "secops_rg_name" {
   default     = "aoss-dev-rg-secops"
 }
 variable "accesslens_law_name" {
-  description = "Log Analytics Workspace name for AccessLens Lite"
-  type        = string
+  type    = string
+  default = "aoss-law-dev"
 }
 
 variable "accesslens_law_retention" {
@@ -32,4 +32,14 @@ variable "accesslens_law_retention" {
 variable "accesslens_diag_name" {
   type    = string
   default = "accesslens-activity-logs"
+}
+variable "tags" {
+  description = "Common tags applied to all resources"
+  type        = map(string)
+  default     = {}
+}
+variable "owner_tag" {
+  description = "Owner tag required by Azure Policy"
+  type        = string
+  default     = ""
 }

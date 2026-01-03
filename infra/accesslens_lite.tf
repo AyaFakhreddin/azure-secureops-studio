@@ -12,8 +12,10 @@ resource "azurerm_log_analytics_workspace" "accesslens_law" {
   sku               = "PerGB2018"
   retention_in_days = var.accesslens_law_retention
 
-  tags = var.tags
-
+  tags = merge(var.tags, {
+  Owner = var.owner_tag
+  })
+  
   lifecycle {
     prevent_destroy = true
   }
