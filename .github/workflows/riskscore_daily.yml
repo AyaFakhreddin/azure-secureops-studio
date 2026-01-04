@@ -68,7 +68,7 @@ jobs:
           name: riskscore-report
           path: |
             reports/riskscore_real.json
-            reports/secureops_riskscore_report.pdf
+            reports/secureops_riskscore_report3.pdf
 
       - name: Create GitHub Issue if Risk is High
         uses: actions/github-script@v7
