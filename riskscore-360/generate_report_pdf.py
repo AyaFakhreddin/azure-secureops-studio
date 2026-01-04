@@ -34,7 +34,6 @@ def safe_load_json(path: str) -> dict:
 
 
 def ensure_space(c: canvas.Canvas, y: float, needed: float = 4.0 * cm) -> float:
-    """Check if there's enough space, create new page if not"""
     if y < needed:
         c.showPage()
         return A4[1] - 3.0 * cm
@@ -42,134 +41,141 @@ def ensure_space(c: canvas.Canvas, y: float, needed: float = 4.0 * cm) -> float:
 
 
 def wrap_text(c: canvas.Canvas, text: str, max_width: float, font_name: str, font_size: int) -> List[str]:
-    """Wrap text to fit within max_width"""
     words = (text or "").split()
     if not words:
         return [""]
 
-    lines = []
-    current_line = ""
-    
-    for word in words:
-        test_line = (current_line + " " + word).strip()
-        if c.stringWidth(test_line, font_name, font_size) <= max_width:
-            current_line = test_line
+    lines: List[str] = []
+    current = ""
+    for w in words:
+        test = (current + " " + w).strip()
+        if c.stringWidth(test, font_name, font_size) <= max_width:
+            current = test
         else:
-            if current_line:
-                lines.append(current_line)
-            current_line = word
-    
-    if current_line:
-        lines.append(current_line)
-    
-    return lines if lines else [""]
+            if current:
+                lines.append(current)
+            current = w
+    if current:
+        lines.append(current)
+    return lines
 
 
-def draw_wrapped_text(c: canvas.Canvas, x: float, y: float, text: str, max_width: float, 
-                       font_name: str = "Helvetica", font_size: int = 10) -> float:
-    """Draw wrapped text and return new y position"""
+def draw_wrapped_text(
+    c: canvas.Canvas,
+    x: float,
+    y: float,
+    text: str,
+    max_width: float,
+    font_name: str = "Helvetica",
+    font_size: int = 10,
+    leading: int = 14,
+) -> float:
     c.setFont(font_name, font_size)
-    lines = wrap_text(c, text, max_width, font_name, font_size)
-    
-    for line in lines:
+    for line in wrap_text(c, text, max_width, font_name, font_size):
         c.drawString(x, y, line)
-        y -= font_size + 4
-    
+        y -= leading
     return y
 
 
 def draw_section_title(c: canvas.Canvas, x: float, y: float, title: str) -> float:
-    """Draw a section title with spacing"""
+    y = ensure_space(c, y, 3.0 * cm)
     c.setFillColor(HexColor("#1a1a1a"))
     c.setFont("Helvetica-Bold", 14)
     c.drawString(x, y, title)
     c.setFillColor(HexColor("#000000"))
-    return y - 22
+    return y - 20
 
 
-def draw_key_value(c: canvas.Canvas, x: float, y: float, key: str, value: str, 
-                   max_width: float, key_width: float = 4.5 * cm) -> float:
-    """Draw key-value pair with proper wrapping"""
+def draw_key_value(
+    c: canvas.Canvas,
+    x: float,
+    y: float,
+    key: str,
+    value: str,
+    max_width: float,
+    key_width: float = 4.5 * cm
+) -> float:
+    y = ensure_space(c, y, 2.0 * cm)
     c.setFont("Helvetica-Bold", 10)
     c.drawString(x, y, f"{key}:")
-    
     value_x = x + key_width
-    value_width = max_width - key_width - 0.5 * cm
-    
-    y = draw_wrapped_text(c, value_x, y, str(value), value_width, "Helvetica", 10)
-    return y - 6
+    value_w = max_width - key_width
+    y = draw_wrapped_text(c, value_x, y, str(value), value_w, "Helvetica", 10, leading=13)
+    return y - 4
 
 
-def truncate_text(text: str, max_len: int = 80) -> str:
-    """Truncate text with ellipsis in middle"""
-    text = str(text or "")
-    if len(text) <= max_len:
-        return text
-    
+def truncate_text(text: str, max_len: int = 90) -> str:
+    t = str(text or "")
+    if len(t) <= max_len:
+        return t
     keep = max_len - 3
     left = keep // 2
     right = keep - left
-    return f"{text[:left]}...{text[-right:]}"
+    return f"{t[:left]}...{t[-right:]}"
 
 
-def draw_table(c: canvas.Canvas, x: float, y: float, headers: List[str], 
-               rows: List[List[str]], col_widths: List[float]) -> float:
-    """Draw a table with headers and rows"""
-    row_height = 18
+def draw_table(
+    c: canvas.Canvas,
+    x: float,
+    y: float,
+    headers: List[str],
+    rows: List[List[str]],
+    col_widths: List[float],
+    font_size: int = 9,
+) -> float:
     padding = 4
-    
-    # Draw header background
-    header_bg = HexColor("#f0f0f0")
-    c.setFillColor(header_bg)
-    c.rect(x, y - row_height + 4, sum(col_widths), row_height, fill=1, stroke=0)
-    
-    # Draw headers
+    header_h = 18
+
+    y = ensure_space(c, y, 4.0 * cm)
+
+    # Header bg
+    c.setFillColor(HexColor("#f0f0f0"))
+    c.rect(x, y - header_h + 4, sum(col_widths), header_h, fill=1, stroke=0)
     c.setFillColor(HexColor("#000000"))
+
+    # Headers
     c.setFont("Helvetica-Bold", 10)
-    curr_x = x + padding
-    for i, header in enumerate(headers):
-        c.drawString(curr_x, y - 12, header)
-        curr_x += col_widths[i]
-    
-    y -= row_height
-    
-    # Draw rows
-    c.setFont("Helvetica", 9)
+    curx = x + padding
+    for i, h in enumerate(headers):
+        c.drawString(curx, y - 12, h)
+        curx += col_widths[i]
+    y -= header_h
+
+    # Rows
+    c.setFont("Helvetica", font_size)
     for row in rows:
-        y = ensure_space(c, y, 3 * cm)
-        
-        curr_x = x + padding
+        y = ensure_space(c, y, 3.0 * cm)
+
+        wrapped_cells: List[List[str]] = []
         max_lines = 1
-        wrapped_cells = []
-        
-        # Wrap each cell
+
         for i, cell in enumerate(row):
-            cell_width = col_widths[i] - (2 * padding)
-            lines = wrap_text(c, str(cell), cell_width, "Helvetica", 9)
+            w = col_widths[i] - 2 * padding
+            lines = wrap_text(c, str(cell), w, "Helvetica", font_size)
             wrapped_cells.append(lines)
             max_lines = max(max_lines, len(lines))
-        
-        # Draw each line
-        for line_idx in range(max_lines):
-            curr_x = x + padding
-            for col_idx, lines in enumerate(wrapped_cells):
-                if line_idx < len(lines):
-                    c.drawString(curr_x, y - (line_idx * 12) - 10, lines[line_idx])
-                curr_x += col_widths[col_idx]
-        
-        y -= (max_lines * 12) + padding
-    
-    return y - 10
+
+        line_h = font_size + 3
+        for li in range(max_lines):
+            curx = x + padding
+            for ci, lines in enumerate(wrapped_cells):
+                if li < len(lines):
+                    c.drawString(curx, y - 10 - li * line_h, lines[li])
+                curx += col_widths[ci]
+
+        y -= max_lines * line_h + 8
+
+    return y - 8
 
 
 # ----------------------------
-# Main report generation
+# Main
 # ----------------------------
 
 def main() -> None:
     repo_root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
     input_json = os.path.join(repo_root, "reports", "riskscore_real.json")
-    output_pdf = os.path.join(repo_root, "reports", "secureops_riskscore2_report.pdf")
+    output_pdf = os.path.join(repo_root, "reports", "secureops_riskscore_report3.pdf")
 
     if not os.path.exists(input_json):
         raise FileNotFoundError(
@@ -180,15 +186,24 @@ def main() -> None:
 
     data: Dict[str, Any] = safe_load_json(input_json)
 
-    # Extract data
     sub_id = data.get("subscription_id", "unknown")
     rg = data.get("resource_group", "unknown")
     score = data.get("risk_score", "N/A")
     level = data.get("risk_level", "N/A")
 
-    policy_risk = data.get("policy_risk", 0)
-    iam_risk = data.get("iam_risk", 0)
-    defender_risk = data.get("defender_risk", 0)
+    # NEW: component_scores (preferred), fallback to legacy flat keys
+    comp = data.get("component_scores", {}) or {}
+    policy_risk = comp.get("policy_risk", data.get("policy_risk", 0))
+    iam_risk = comp.get("iam_risk", data.get("iam_risk", 0))
+    defender_risk = comp.get("defender_risk", data.get("defender_risk", 0))
+    network_risk = comp.get("network_risk", data.get("network_risk", 0))
+    encryption_risk = comp.get("encryption_risk", data.get("encryption_risk", 0))
+
+    # Risk analysis (optional)
+    ra = data.get("risk_analysis", {}) or {}
+    total_raw = ra.get("total_raw_score", None)
+    max_possible = ra.get("max_possible_score", None)
+    top_drivers = (ra.get("top_risk_drivers") or []) if isinstance(ra, dict) else []
 
     raw = data.get("raw_inputs", {}) or {}
 
@@ -201,239 +216,241 @@ def main() -> None:
     iam_counts = iam_raw.get("counts", {}) or {}
     owners = iam_counts.get("owners", "N/A")
     contributors = iam_counts.get("contributors", "N/A")
+    readers = iam_counts.get("readers", "N/A")
     owner_sample = iam_raw.get("owner_principals_sample", []) or []
     contrib_sample = iam_raw.get("contributor_principals_sample", []) or []
 
     defender_raw = raw.get("defender", {}) or {}
     high = defender_raw.get("high", 0)
     medium = defender_raw.get("medium", 0)
+    low = defender_raw.get("low", 0)
+
+    network_raw = raw.get("network", {}) or {}
+    open_ports = network_raw.get("open_high_risk_ports", 0)
+    public_ips = network_raw.get("public_ip_count", 0)
+    missing_nsg = network_raw.get("missing_nsg_count", 0)
+
+    enc_raw = raw.get("encryption", {}) or {}
+    unencrypted = enc_raw.get("unencrypted_storage_accounts", 0)
+    weak_tls = enc_raw.get("weak_tls_configs", 0)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    # Create PDF
     c = canvas.Canvas(output_pdf, pagesize=A4)
     width, height = A4
     margin = 2.5 * cm
     x = margin
     y = height - margin
-    max_width = width - (2 * margin)
+    max_width = width - 2 * margin
 
-    # -------------------------
-    # Page 1: Executive Report
-    # -------------------------
-    
     # Title
     c.setFont("Helvetica-Bold", 20)
     c.drawString(x, y, "SecureOps RiskScore 360")
     y -= 24
     c.setFont("Helvetica", 16)
     c.drawString(x, y, "Security Assessment Report")
-    y -= 35
+    y -= 32
 
     # Metadata
     y = draw_key_value(c, x, y, "Generated", now, max_width)
-    y = draw_key_value(c, x, y, "Subscription", truncate_text(sub_id, 60), max_width)
+    y = draw_key_value(c, x, y, "Subscription", truncate_text(sub_id, 70), max_width)
     y = draw_key_value(c, x, y, "Resource Group", str(rg), max_width)
-    y -= 20
+    y -= 10
 
-    # Executive Summary
+    # Executive summary
     y = draw_section_title(c, x, y, "1. Executive Summary")
-    
-    # Risk Score Box
-    box_width = 6 * cm
-    box_height = 2.5 * cm
-    
-    # Determine color based on risk level
+
+    # Risk score box
+    box_w = 6 * cm
+    box_h = 2.5 * cm
+
     level_str = str(level).upper()
-    if "HIGH" in level_str or "CRITICAL" in level_str:
+    if "CRITICAL" in level_str:
+        box_color = HexColor("#b71c1c")
+    elif "HIGH" in level_str:
         box_color = HexColor("#d32f2f")
     elif "MEDIUM" in level_str:
         box_color = HexColor("#f57c00")
     else:
         box_color = HexColor("#388e3c")
-    
+
     c.setFillColor(box_color)
-    c.rect(x, y - box_height, box_width, box_height, fill=1, stroke=0)
-    
+    c.rect(x, y - box_h, box_w, box_h, fill=1, stroke=0)
     c.setFillColor(HexColor("#ffffff"))
     c.setFont("Helvetica-Bold", 40)
-    c.drawString(x + 1 * cm, y - 1.6 * cm, str(score))
+    c.drawString(x + 1.0 * cm, y - 1.6 * cm, str(score))
     c.setFont("Helvetica-Bold", 12)
     c.drawString(x + 0.5 * cm, y - 2.2 * cm, f"Risk Level: {level}")
-    
     c.setFillColor(HexColor("#000000"))
-    y -= box_height + 20
+    y -= box_h + 14
 
-    summary_text = (
-        "This report consolidates governance compliance (Azure Policy), identity governance "
-        "(RBAC/IAM drift), and security posture signals (Defender for Cloud) into a normalized "
-        "risk score to support prioritization."
+    summary = (
+        "This report consolidates governance compliance (Azure Policy), identity governance (RBAC/IAM), "
+        "Defender for Cloud posture, and selected exposure controls (network & encryption) into a normalized "
+        "risk score to support remediation prioritization."
     )
-    y = draw_wrapped_text(c, x, y, summary_text, max_width, "Helvetica", 10)
-    y -= 20
+    y = draw_wrapped_text(c, x, y, summary, max_width, "Helvetica", 10, leading=13)
+    y -= 8
 
-    # Score Breakdown
-    y = ensure_space(c, y, 8 * cm)
+    # Top risk drivers (if provided)
+    if top_drivers:
+        y = ensure_space(c, y, 4.0 * cm)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(x, y, "Top Risk Drivers:")
+        y -= 16
+        c.setFont("Helvetica", 10)
+        for d in top_drivers[:3]:
+            comp_name = str(d.get("component", "unknown")).upper()
+            sc = d.get("score", 0)
+            sev = d.get("severity", "n/a")
+            c.drawString(x + 0.4 * cm, y, f"- {comp_name}: {sc} points ({sev})")
+            y -= 14
+        y -= 4
+
+    # Score breakdown
     y = draw_section_title(c, x, y, "2. Score Breakdown")
-    
-    headers = ["Component", "Value", "Details"]
-    rows = [
-        ["Policy Risk", str(policy_risk), f"{unique_nc} unique non-compliant policies"],
-        ["IAM Risk", str(iam_risk), f"Drift: {iam_drift} (Owners: {owners}, Contributors: {contributors})"],
-        ["Defender Risk", str(defender_risk), f"High: {high}, Medium: {medium}"],
-        ["Total RiskScore", str(score), f"Level: {level}"]
-    ]
-    col_widths = [3.5 * cm, 2.5 * cm, max_width - 6 * cm]
-    
-    y = draw_table(c, x, y, headers, rows, col_widths)
-    y -= 15
 
-    # Recommended Actions
-    y = ensure_space(c, y, 6 * cm)
-    y = draw_section_title(c, x, y, "3. Recommended Actions")
-    
-    actions = []
+    headers = ["Component", "Value", "Evidence (Real Inputs)"]
+    rows = [
+        ["Policy", str(policy_risk), f"{unique_nc} unique non-compliant policies"],
+        ["IAM", str(iam_risk), f"Drift: {iam_drift} | Owners: {owners} | Contributors: {contributors} | Readers: {readers}"],
+        ["Defender", str(defender_risk), f"Unhealthy: High={high}, Medium={medium}, Low={low}"],
+        ["Network", str(network_risk), f"Open risky ports: {open_ports} | Public IPs: {public_ips} | Missing NSG: {missing_nsg}"],
+        ["Encryption", str(encryption_risk), f"Unencrypted storage: {unencrypted} | Weak TLS: {weak_tls}"],
+    ]
+    if total_raw is not None and max_possible is not None:
+        rows.append(["Total (Normalized)", str(score), f"Raw: {total_raw} / {max_possible} | Level: {level}"])
+    else:
+        rows.append(["Total", str(score), f"Level: {level}"])
+
+    col_widths = [3.0 * cm, 2.2 * cm, max_width - 5.2 * cm]
+    y = draw_table(c, x, y, headers, rows, col_widths)
+    y -= 6
+
+    # Recommended actions
+    y = draw_section_title(c, x, y, "3. Recommended Actions (Prioritized)")
+
+    actions: List[str] = []
     if int(unique_nc) > 0:
         actions.append(
-            f"Remediate {unique_nc} non-compliant Azure policies in resource group '{rg}'. "
-            "Prioritize the most frequent policies listed in the appendix."
+            f"Remediate {unique_nc} non-compliant Azure policies in RG '{rg}'. "
+            "Start with the highest-frequency policies listed in the appendix."
         )
-    if str(iam_drift).lower() in ("owner", "contributor"):
+    if str(iam_drift).lower() in ("owner", "contributor") or (isinstance(owners, int) and owners > 2):
         actions.append(
-            f"Review RBAC assignments to reduce privilege sprawl. Current: {owners} Owners, "
-            f"{contributors} Contributors. Ensure each Owner role is justified."
+            f"Reduce privileged sprawl: review RBAC assignments. Current counts -> Owners={owners}, Contributors={contributors}. "
+            "Keep Owner role for break-glass/admin accounts only."
         )
-    if int(high) + int(medium) > 0:
+    if int(high) + int(medium) + int(low) > 0:
         actions.append(
-            f"Address {int(high) + int(medium)} Defender for Cloud unhealthy assessments "
-            f"(High: {high}, Medium: {medium})."
+            f"Address Defender for Cloud unhealthy assessments: High={high}, Medium={medium}, Low={low}. "
+            "Prioritize High severity first."
+        )
+    if int(open_ports) > 0 or int(public_ips) > 2 or int(missing_nsg) > 0:
+        actions.append(
+            f"Reduce exposure: close/limit high-risk inbound ports, review public IP usage, ensure NICs are protected by NSGs."
+        )
+    if int(unencrypted) > 0 or int(weak_tls) > 0:
+        actions.append(
+            "Harden storage security: enforce TLS 1.2+, HTTPS-only, and ensure storage encryption is enabled."
         )
     if not actions:
-        actions.append("No critical actions detected. Continue monitoring.")
-    
-    for i, action in enumerate(actions, 1):
-        y = ensure_space(c, y, 3 * cm)
+        actions.append("No critical actions detected for this scope. Continue monitoring and re-run periodically.")
+
+    for i, a in enumerate(actions, 1):
+        y = ensure_space(c, y, 2.5 * cm)
         c.setFont("Helvetica-Bold", 10)
         c.drawString(x, y, f"{i}.")
-        y = draw_wrapped_text(c, x + 0.7 * cm, y, action, max_width - 0.7 * cm, "Helvetica", 10)
-        y -= 8
+        y = draw_wrapped_text(c, x + 0.6 * cm, y, a, max_width - 0.6 * cm, "Helvetica", 10, leading=13)
+        y -= 4
 
-    # -------------------------
-    # Page 2: Technical Appendix
-    # -------------------------
+    # ---------------- Page 2: Appendix ----------------
     c.showPage()
     y = height - margin
 
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(x, y, "Technical Appendix")
-    y -= 30
+    c.drawString(x, y, "Technical Appendix - Evidence & Methodology")
+    y -= 28
 
-    # Data Sources
-    y = draw_section_title(c, x, y, "A. Data Sources")
-    sources_text = (
-        "Azure Policy: Microsoft.PolicyInsights policyStates (NonCompliant) at RG scope. "
-        "IAM: Microsoft.Authorization roleAssignments at subscription scope. "
-        "Defender: Microsoft.Security assessments (Unhealthy only) at RG scope."
+    y = draw_section_title(c, x, y, "A. Data Sources & Scope")
+    sources = (
+        "Azure Policy: Microsoft.PolicyInsights policyStates (NonCompliant) at resource-group scope. "
+        "IAM/RBAC: Microsoft.Authorization roleAssignments at subscription scope. "
+        "Defender for Cloud: Microsoft.Security assessments (Unhealthy only) at RG scope. "
+        "Network: NSG rules, NIC protection, public IP exposure. "
+        "Encryption: storage account encryption, TLS, and HTTPS enforcement."
     )
-    y = draw_wrapped_text(c, x, y, sources_text, max_width, "Helvetica", 10)
-    y -= 20
+    y = draw_wrapped_text(c, x, y, sources, max_width, "Helvetica", 10, leading=13)
+    y -= 10
 
-    # Top Non-Compliant Policies
-    y = ensure_space(c, y, 6 * cm)
-    y = draw_section_title(c, x, y, "B. Top Non-Compliant Policies")
-    
+    y = draw_section_title(c, x, y, "B. Top Non-Compliant Policies (by records)")
     if top_policies:
         headers = ["Policy Definition ID", "Records"]
         rows = []
         for item in top_policies[:10]:
-            pdid = truncate_text(str(item.get("policyDefinitionId", "")), 70)
+            pdid = truncate_text(str(item.get("policyDefinitionId", "")), 85)
             recs = str(item.get("noncompliant_records", ""))
             rows.append([pdid, recs])
-        
-        col_widths = [max_width - 3 * cm, 3 * cm]
+        col_widths = [max_width - 3.2 * cm, 3.2 * cm]
         y = draw_table(c, x, y, headers, rows, col_widths)
     else:
-        y = draw_wrapped_text(c, x, y, "No policy data available.", max_width, "Helvetica", 10)
-    
-    y -= 20
+        y = draw_wrapped_text(c, x, y, "No policy data available.", max_width)
 
-    # IAM Evidence
-    y = ensure_space(c, y, 6 * cm)
-    y = draw_section_title(c, x, y, "C. IAM Evidence")
-    
-    iam_text = (
-        f"Drift classification: {iam_drift}. Owners: {owners}, Contributors: {contributors}. "
-        "Sample principals with privileged roles:"
-    )
-    y = draw_wrapped_text(c, x, y, iam_text, max_width, "Helvetica", 10)
     y -= 10
+    y = draw_section_title(c, x, y, "C. IAM Evidence (samples)")
+    iam_txt = f"Drift: {iam_drift}. Owners={owners}, Contributors={contributors}, Readers={readers}. Samples below."
+    y = draw_wrapped_text(c, x, y, iam_txt, max_width, "Helvetica", 10, leading=13)
+    y -= 6
 
-    # Owner principals
     if owner_sample:
-        y = ensure_space(c, y, 5 * cm)
         c.setFont("Helvetica-Bold", 11)
-        c.drawString(x, y, "Owner Principals (sample)")
-        y -= 18
-        
+        c.drawString(x, y, "Owner principals (sample)")
+        y -= 16
         headers = ["Principal ID", "Type"]
         rows = []
         for p in owner_sample[:8]:
-            pid = truncate_text(str(p.get("principalId", "")), 65)
-            ptype = str(p.get("principalType", ""))
-            rows.append([pid, ptype])
-        
-        col_widths = [max_width - 3.5 * cm, 3.5 * cm]
+            rows.append([truncate_text(str(p.get("principalId", "")), 70), str(p.get("principalType", ""))])
+        col_widths = [max_width - 4 * cm, 4 * cm]
         y = draw_table(c, x, y, headers, rows, col_widths)
-        y -= 15
 
-    # Contributor principals
     if contrib_sample:
-        y = ensure_space(c, y, 5 * cm)
+        y -= 6
         c.setFont("Helvetica-Bold", 11)
-        c.drawString(x, y, "Contributor Principals (sample)")
-        y -= 18
-        
+        c.drawString(x, y, "Contributor principals (sample)")
+        y -= 16
         headers = ["Principal ID", "Type"]
         rows = []
         for p in contrib_sample[:8]:
-            pid = truncate_text(str(p.get("principalId", "")), 65)
-            ptype = str(p.get("principalType", ""))
-            rows.append([pid, ptype])
-        
-        col_widths = [max_width - 3.5 * cm, 3.5 * cm]
+            rows.append([truncate_text(str(p.get("principalId", "")), 70), str(p.get("principalType", ""))])
+        col_widths = [max_width - 4 * cm, 4 * cm]
         y = draw_table(c, x, y, headers, rows, col_widths)
 
-    # Methodology
+    # ---------------- Page 3: Methodology ----------------
     c.showPage()
     y = height - margin
-    
-    y = draw_section_title(c, x, y, "D. Scoring Methodology")
-    
-    methodology = [
-        "Policy Risk = min(60, unique_noncompliant_policies × 5)",
-        "IAM Risk = 70 (Owner drift) | 40 (Contributor drift) | 0 (none)",
-        "Defender Risk = (High × 30) + (Medium × 15)",
-        "Final RiskScore = min(100, Policy Risk + IAM Risk + Defender Risk)"
+
+    y = draw_section_title(c, x, y, "D. Scoring Methodology (Normalized)")
+    meth = [
+        "Each component produces a bounded sub-score: Policy(0-40), IAM(0-35), Defender(0-35), Network(0-15), Encryption(0-10).",
+        "Raw total = sum(component scores). Max possible = 135.",
+        "Final RiskScore = min(100, round((RawTotal / 135) × 100)).",
+        "Risk Level thresholds: Low<10, Low-Medium<25, Medium<40, Medium-High<60, High<75, Critical≥75 (or critical component + score≥50).",
     ]
-    
-    for line in methodology:
-        c.setFont("Helvetica", 10)
-        c.drawString(x + 0.5 * cm, y, f"• {line}")
-        y -= 16
-    
-    y -= 10
-    
-    # Limitations
+    for line in meth:
+        y = draw_wrapped_text(c, x + 0.4 * cm, y, f"- {line}", max_width - 0.4 * cm, "Helvetica", 10, leading=13)
+        y -= 2
+
+    y -= 8
     y = draw_section_title(c, x, y, "E. Notes & Limitations")
-    limitations_text = (
-        "Defender assessments may be 0 if Defender for Cloud is not enabled or fully initialized. "
-        "IAM drift uses threshold-based classification and can be refined with organization-specific "
-        "baselines and role justification processes."
+    notes = (
+        "Defender counts may be 0 if Defender for Cloud is not enabled or not fully initialized. "
+        "IAM drift is computed using threshold-based heuristics and should be tuned to organizational baselines. "
+        "Network/encryption checks depend on RBAC permissions and available resources in the RG."
     )
-    y = draw_wrapped_text(c, x, y, limitations_text, max_width, "Helvetica", 10)
+    y = draw_wrapped_text(c, x, y, notes, max_width, "Helvetica", 10, leading=13)
 
     c.save()
-    print(f" PDF report generated successfully: {output_pdf}")
+    print(f"[OK] PDF report generated successfully: {output_pdf}")
 
 
 if __name__ == "__main__":
