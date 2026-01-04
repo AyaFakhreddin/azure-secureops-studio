@@ -1,0 +1,113 @@
+name: RiskScore 360
+
+on:
+  workflow_run:
+    workflows:
+      # IMPORTANT:
+      # These must match EXACTLY the `name:` field inside your other workflow YAML files,
+      # NOT the filename (deploy-infra.yml, remediate_after_deploy.yml, etc.)
+      - Deploy Infra
+      - Remediate After Deploy
+    types:
+      - completed
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+jobs:
+  riskscore:
+    # For workflow_run, only proceed if the triggering workflow succeeded.
+    # For manual runs (workflow_dispatch), allow it to run.
+    if: >
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r riskscore-360/requirements.txt
+
+      - name: Collect real RiskScore inputs
+        run: |
+          python riskscore-360/collect_real_inputs.py > riskscore-360/real_inputs.json
+
+      - name: Compute RiskScore
+        run: |
+          python riskscore-360/compute_score.py > reports/riskscore_real.json
+
+      - name: Generate user PDF report
+        run: |
+          python riskscore-360/generate_report_pdf.py
+
+      - name: Upload RiskScore artifacts (JSON + PDF)
+        uses: actions/upload-artifact@v4
+        with:
+          name: riskscore-report
+          path: |
+            reports/riskscore_real.json
+            reports/secureops_riskscore_report.pdf
+
+      - name: Create GitHub Issue if Risk is High
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const reportPath = 'reports/riskscore_real.json';
+            if (!fs.existsSync(reportPath)) {
+              core.setFailed(`Missing ${reportPath}`);
+              return;
+            }
+
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+
+            if (report.risk_level !== 'High') {
+              core.info(`Risk level is ${report.risk_level}. No issue created.`);
+              return;
+            }
+
+            const title = `[RiskScore] HIGH risk detected in ${report.resource_group} (Score: ${report.risk_score})`;
+            const body = [
+              `Automated RiskScore report detected **HIGH** risk.`,
+              ``,
+              `**Resource Group:** ${report.resource_group}`,
+              `**RiskScore:** ${report.risk_score}`,
+              `**Breakdown:** Policy=${report.policy_risk}, IAM=${report.iam_risk}, Defender=${report.defender_risk}`,
+              ``,
+              `**Raw Inputs:**`,
+              '```json',
+              JSON.stringify(report.raw_inputs, null, 2),
+              '```',
+              ``,
+              `PDF report is available in the workflow run artifacts: **riskscore-report**.`,
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body
+            });
