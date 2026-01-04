@@ -1,0 +1,8 @@
+# Treat PDFs as binary to avoid LF/CRLF warnings on Windows
+*.pdf binary
+
+# Optional: also treat common report artifacts as binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+
